@@ -1,9 +1,9 @@
 ﻿// Service worker Nonno Run: cache-first, gioco completo offline.
-const CACHE = 'nonno-run-v3';
+const CACHE = 'nonno-run-v4';
 const FILES = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png',
-  './apple-touch-icon.png',
+  './apple-touch-icon.png', './music.mp3',
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

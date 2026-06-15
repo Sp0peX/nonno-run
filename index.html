@@ -76,39 +76,15 @@ const SFX={
            tone(784,784,.1,'square',.12,.2);tone(1046,1046,.25,'square',.12,.3);}
 };
 
-/* ---------------- musica chiptune ---------------- */
-const MEL=[523,0,659,0,784,659,523,0, 587,0,698,0,880,0,784,0,
-           523,0,659,0,784,659,1046,0, 988,880,784,0,659,0,587,0];
-const BASS=[131,131,196,196, 175,175,196,196, 131,131,196,196, 220,220,196,98];
-let musTimer=null, musGain=null, musStep=0, musNext=0;
-function musicStart(){
-  const a=ac(); if(!a||muted||musTimer)return;
-  musGain=a.createGain(); musGain.gain.value=0.05; musGain.connect(a.destination);
-  musStep=0; musNext=a.currentTime+0.06;
-  musTimer=setInterval(musicSched,25);
+/* ---------------- musica (traccia mp3) ---------------- */
+let bgm=null;
+function musicInit(){
+  if(bgm)return;
+  bgm=new Audio('music.mp3');
+  bgm.loop=true; bgm.volume=0.55; bgm.preload='auto';
 }
-function musicStop(){
-  if(musTimer){clearInterval(musTimer);musTimer=null;}
-  if(musGain){try{musGain.disconnect();}catch(e){} musGain=null;}
-}
-function musicSched(){
-  const a=ac(); if(!a||!musGain)return;
-  const spb=60/132/2; // crome a 132 bpm
-  while(musNext < a.currentTime+0.12){
-    musVoice(MEL[musStep%MEL.length],'square',0.5,spb*0.9,musNext);
-    if(musStep%2===0) musVoice(BASS[musStep%BASS.length],'triangle',0.7,spb*1.8,musNext);
-    musNext+=spb; musStep++;
-  }
-}
-function musVoice(f,type,vol,dur,t){
-  if(!f)return; const a=ac(); if(!a||!musGain)return;
-  const o=a.createOscillator(),g=a.createGain();
-  o.type=type; o.frequency.value=f;
-  g.gain.setValueAtTime(0.0001,t);
-  g.gain.linearRampToValueAtTime(vol,t+0.012);
-  g.gain.exponentialRampToValueAtTime(0.0008,t+dur);
-  o.connect(g); g.connect(musGain); o.start(t); o.stop(t+dur+0.02);
-}
+function musicStart(){ if(muted)return; musicInit(); const p=bgm.play(); if(p&&p.catch)p.catch(()=>{}); }
+function musicStop(){ if(bgm){ try{bgm.pause();}catch(e){} } }
 function musicMaybeStart(){ if(!muted)musicStart(); }
 function toggleMute(){
   muted=!muted; localStorage.setItem('nonnoRunMuted',muted?'1':'0');
