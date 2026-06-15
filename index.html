@@ -47,8 +47,10 @@ addEventListener('resize',fit); fit();
 let AC=null;
 function ac(){ if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} }
   if(AC&&AC.state==='suspended')AC.resume(); return AC; }
+let muted=localStorage.getItem('nonnoRunMuted')==='1';
+function vib(p){ if(!muted && navigator.vibrate){ try{navigator.vibrate(p);}catch(e){} } }
 function tone(f0,f1,dur,type,vol,delay){
-  const a=ac(); if(!a)return;
+  const a=ac(); if(!a||muted)return;
   try{
     const t0=a.currentTime+(delay||0);
     const o=a.createOscillator(),g=a.createGain();
@@ -74,6 +76,45 @@ const SFX={
            tone(784,784,.1,'square',.12,.2);tone(1046,1046,.25,'square',.12,.3);}
 };
 
+/* ---------------- musica chiptune ---------------- */
+const MEL=[523,0,659,0,784,659,523,0, 587,0,698,0,880,0,784,0,
+           523,0,659,0,784,659,1046,0, 988,880,784,0,659,0,587,0];
+const BASS=[131,131,196,196, 175,175,196,196, 131,131,196,196, 220,220,196,98];
+let musTimer=null, musGain=null, musStep=0, musNext=0;
+function musicStart(){
+  const a=ac(); if(!a||muted||musTimer)return;
+  musGain=a.createGain(); musGain.gain.value=0.05; musGain.connect(a.destination);
+  musStep=0; musNext=a.currentTime+0.06;
+  musTimer=setInterval(musicSched,25);
+}
+function musicStop(){
+  if(musTimer){clearInterval(musTimer);musTimer=null;}
+  if(musGain){try{musGain.disconnect();}catch(e){} musGain=null;}
+}
+function musicSched(){
+  const a=ac(); if(!a||!musGain)return;
+  const spb=60/132/2; // crome a 132 bpm
+  while(musNext < a.currentTime+0.12){
+    musVoice(MEL[musStep%MEL.length],'square',0.5,spb*0.9,musNext);
+    if(musStep%2===0) musVoice(BASS[musStep%BASS.length],'triangle',0.7,spb*1.8,musNext);
+    musNext+=spb; musStep++;
+  }
+}
+function musVoice(f,type,vol,dur,t){
+  if(!f)return; const a=ac(); if(!a||!musGain)return;
+  const o=a.createOscillator(),g=a.createGain();
+  o.type=type; o.frequency.value=f;
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.linearRampToValueAtTime(vol,t+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0008,t+dur);
+  o.connect(g); g.connect(musGain); o.start(t); o.stop(t+dur+0.02);
+}
+function musicMaybeStart(){ if(!muted)musicStart(); }
+function toggleMute(){
+  muted=!muted; localStorage.setItem('nonnoRunMuted',muted?'1':'0');
+  if(muted)musicStop(); else { ac(); musicStart(); }
+}
+
 /* ---------------- stato ---------------- */
 const GRAV=1500, JV=-410;
 let st='menu', tt=0, menuDist=0;
@@ -84,6 +125,10 @@ let deathT=0, deathKind='', deathMsg='', fallX=0, fallRot=0, netHit=null;
 let newHi=false, firstPit=true, firstNet=true, firstCart=true, firstBird=true;
 let curBi=0, biomeName='', biomeFlash=0;
 let hi=+(localStorage.getItem('nonnoRunHi')||0);
+let games=+(localStorage.getItem('nonnoRunGames')||0);
+let totM=+(localStorage.getItem('nonnoRunTotM')||0);
+let topRuns=[]; try{topRuns=JSON.parse(localStorage.getItem('nonnoRunTop')||'[]');}catch(e){topRuns=[];}
+let shareMsg='', shareMsgT=0;
 
 function reset(){
   dist=0; score=0; speed=170; spawnT=1.5;
@@ -110,15 +155,28 @@ function burst(x,y,c,n){ for(let i=0;i<(n||14);i++){
 
 /* ---------------- input ---------------- */
 const PAUSE_BTN ={x:VW-32,y:6,w:26,h:24};
-const RESUME_BTN={x:VW/2-74,y:118,w:148,h:30};
-const PMENU_BTN ={x:VW/2-74,y:158,w:148,h:30};
-const DEAD_RETRY={x:VW/2-104,y:236,w:100,h:26};
-const DEAD_MENU ={x:VW/2+4,y:236,w:100,h:26};
+const MUTE_BTN  ={x:6,y:6,w:30,h:22};
+const STATS_BTN ={x:VW-66,y:6,w:60,h:22};
+const RESUME_BTN={x:VW/2-74,y:112,w:148,h:28};
+const PMENU_BTN ={x:VW/2-74,y:148,w:148,h:28};
+const PMUTE_BTN ={x:VW/2-74,y:184,w:148,h:26};
+const STATS_BACK={x:VW/2-60,y:238,w:120,h:26};
+const DEAD_RETRY={x:58,y:238,w:108,h:26};
+const DEAD_SHARE={x:186,y:238,w:108,h:26};
+const DEAD_MENU ={x:314,y:238,w:108,h:26};
 const inRect=(xy,r)=>!!xy&&xy.x>=r.x&&xy.x<=r.x+r.w&&xy.y>=r.y&&xy.y<=r.y+r.h;
 function pause(){ if(st==='play'){ st='paused'; tone(330,220,0.1,'square',0.08); } }
 function resume(){ if(st==='paused'){ st='play'; last=performance.now(); tone(220,440,0.1,'square',0.08); } }
-function toMenu(){ st='menu'; tone(520,300,0.12,'square',0.08); }
+function toMenu(){ reset(); st='menu'; tone(520,300,0.12,'square',0.08); }
 function retry(){ reset(); st='play'; }
+function shareScore(){
+  const m=Math.floor(dist/30), s=Math.floor(score);
+  const text='Sono scappato dalla casa di riposo per '+m+' m ('+s+' punti) in Nonno Run! 🏃';
+  const url='https://sp0pex.github.io/nonno-run/';
+  if(navigator.share){ navigator.share({title:'Nonno Run',text:text,url:url}).catch(()=>{}); }
+  else if(navigator.clipboard){ navigator.clipboard.writeText(text+' '+url).then(()=>{shareMsg='COPIATO NEGLI APPUNTI!';shareMsgT=tt+1.8;}).catch(()=>{}); }
+  else { shareMsg='CONDIVISIONE NON DISPONIBILE'; shareMsgT=tt+1.8; }
+}
 function doJump(){
   if(st!=='play')return;
   if(P.ground){ P.slide=0; P.vy=JV; P.ground=false; SFX.jump(); dust(PX,GY); }
@@ -143,22 +201,33 @@ function act(a,xy){
     if(st==='play')pause();
     else if(st==='paused')resume();
     else if(st==='dead'&&deathT>0.4)toMenu();
-    return;
+    else if(st==='stats')toMenu();
+    musicMaybeStart(); return;
   }
+  if(st==='stats'){ toMenu(); musicMaybeStart(); return; }
   if(st==='menu'){
     if(a==='left'){ changeSkin(-1); return; }
     if(a==='right'){ changeSkin(1); return; }
-    if(a==='tap'&&xy&&xy.y>95&&xy.y<168){ changeSkin(xy.x<VW/2?-1:1); return; }
-    startRun(); return;
+    if(a==='tap'){
+      if(inRect(xy,MUTE_BTN)){ toggleMute(); return; }
+      if(inRect(xy,STATS_BTN)){ st='stats'; tone(520,640,0.08,'square',0.08); return; }
+      if(xy&&xy.y>95&&xy.y<168){ changeSkin(xy.x<VW/2?-1:1); return; }
+    }
+    startRun(); musicMaybeStart(); return;
   }
   if(st==='paused'){
-    if(a==='tap'){ if(inRect(xy,PMENU_BTN))toMenu(); else resume(); }
+    if(a==='tap'){
+      if(inRect(xy,PMUTE_BTN))toggleMute();
+      else if(inRect(xy,PMENU_BTN))toMenu();
+      else resume();
+    }
     else if(a==='up')resume();
     return;
   }
   if(st==='dead'){
     if(deathT<=0.55)return;
     if(a==='tap'&&inRect(xy,DEAD_MENU))toMenu();
+    else if(a==='tap'&&inRect(xy,DEAD_SHARE))shareScore();
     else retry();
     return;
   }
@@ -247,16 +316,16 @@ const BIRD_MSG=['Beccato in pieno dal piccione!','Maledetti piccioni del parco!'
 function startFall(pit){
   st='dying'; deathKind='pit'; deathT=0;
   fallX=Math.min(Math.max(PX,pit.x+12),pit.x+pit.w-12);
-  P.vy=40; SFX.fall(); shake=8;
+  P.vy=40; SFX.fall(); shake=8; vib(150);
 }
 function caught(e){
   st='dying'; deathKind='net'; deathT=0; netHit=e;
-  SFX.caught(); shake=6;
+  SFX.caught(); shake=6; vib(150);
   burst(e.x-44,GY-38,'#fff',8);
 }
 function crash(kind){
   st='dying'; deathKind=kind; deathT=0; fallRot=0;
-  P.vy=-260; SFX.caught(); shake=7;
+  P.vy=-260; SFX.caught(); shake=7; vib(150);
 }
 function gameOver(){
   st='dead'; deathT=0; newSkinMsg='';
@@ -269,6 +338,12 @@ function gameOver(){
   }
   const m={pit:PIT_MSG,net:NET_MSG,cart:CART_MSG,bird:BIRD_MSG}[deathKind]||PIT_MSG;
   deathMsg=m[Math.random()*m.length|0];
+  // statistiche
+  games++; localStorage.setItem('nonnoRunGames',games);
+  totM+=Math.floor(dist/30); localStorage.setItem('nonnoRunTotM',totM);
+  topRuns.push({s:Math.floor(score),m:Math.floor(dist/30)});
+  topRuns.sort((a,b)=>b.s-a.s); topRuns=topRuns.slice(0,5);
+  localStorage.setItem('nonnoRunTop',JSON.stringify(topRuns));
 }
 function collide(){
   const pl=prect();
@@ -301,7 +376,7 @@ function collide(){
         e.dead=true;
         if(e.type==='pillB'){ inv=10; SFX.pillB(); burst(e.x,e.y,'#5d93ff',16); }
         else { turbo=8; SFX.pillG(); burst(e.x,e.y,'#3ecf5a',16); }
-        score+=100*(turbo>0?2:1);
+        score+=100*(turbo>0?2:1); vib(15);
       }
     }
   }
@@ -316,7 +391,7 @@ function update(dt){
   for(const p of parts){ p.t+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=p.g*dt; }
   parts=parts.filter(p=>p.t<p.life);
 
-  if(st==='menu'){ menuDist+=60*dt; lockFlash=Math.max(0,lockFlash-dt); return; }
+  if(st==='menu'||st==='stats'){ menuDist+=60*dt; lockFlash=Math.max(0,lockFlash-dt); return; }
 
   if(st==='play'){
     const sp=speed*(turbo>0?1.55:1);
@@ -622,6 +697,42 @@ function drawWorld(d){
   ctx.fillStyle=W.soilD;
   for(let x=md(-d,34)-34;x<VW;x+=34) ctx.fillRect(x,GY+24,10,4);
 }
+/* ---------------- meteo dinamico ---------------- */
+const WEATHER_M=210; // metri per fase meteo
+function weatherInt(d){
+  const f=(d/30)/WEATHER_M, i=Math.floor(f)%4, j=(i+1)%4;
+  let t=f-Math.floor(f); t=t<0.85?0:(t-0.85)/0.15;
+  const I=k=>((i===k?1:0)*(1-t)+(j===k?1:0)*t);
+  return {sunset:I(1), rain:I(2), fog:I(3)}; // 0 = sereno
+}
+function drawWeather(d){
+  const w=weatherInt(d);
+  if(w.sunset>0.01){
+    const g=ctx.createLinearGradient(0,0,0,VH);
+    g.addColorStop(0,'rgba(255,120,40,'+(0.30*w.sunset).toFixed(2)+')');
+    g.addColorStop(0.6,'rgba(255,90,60,'+(0.16*w.sunset).toFixed(2)+')');
+    g.addColorStop(1,'rgba(120,40,90,'+(0.10*w.sunset).toFixed(2)+')');
+    ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH);
+  }
+  if(w.rain>0.01){
+    ctx.fillStyle='rgba(40,55,75,'+(0.26*w.rain).toFixed(2)+')'; ctx.fillRect(0,0,VW,VH);
+    ctx.strokeStyle='rgba(180,200,230,'+(0.5*w.rain).toFixed(2)+')'; ctx.lineWidth=1;
+    ctx.beginPath();
+    for(let i=0;i<90;i++){
+      const x=md(i*61-tt*900, VW+40)-20, y=md(i*47+tt*900, VH+40)-20;
+      ctx.moveTo(x,y); ctx.lineTo(x-4,y+10);
+    }
+    ctx.stroke();
+  }
+  if(w.fog>0.01){
+    ctx.fillStyle='rgba(225,228,232,'+(0.30*w.fog).toFixed(2)+')'; ctx.fillRect(0,0,VW,VH);
+    ctx.fillStyle='rgba(240,242,245,'+(0.18*w.fog).toFixed(2)+')';
+    for(let i=0;i<3;i++){
+      const y=60+i*60, x=md(-tt*(18+i*10),VW+200)-100;
+      ctx.fillRect(x,y,200,26); ctx.fillRect(x+VW+40,y,200,26);
+    }
+  }
+}
 function drawPit(e){
   const x=e.x|0, w=e.w|0;
   ctx.fillStyle='#241409'; ctx.fillRect(x,GY-1,w,VH-GY+1);
@@ -700,11 +811,43 @@ function drawBtn(r,label,col){
   ctx.strokeStyle=col; ctx.lineWidth=2; ctx.strokeRect(r.x+1,r.y+1,r.w-2,r.h-2);
   txt(label,r.x+r.w/2,r.y+r.h/2+5,14,col,'center');
 }
+function drawMuteBtn(r){
+  ctx.fillStyle='rgba(20,12,30,0.45)'; ctx.fillRect(r.x,r.y,r.w,r.h);
+  ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1; ctx.strokeRect(r.x+0.5,r.y+0.5,r.w-1,r.h-1);
+  const cx=r.x+9, cy=r.y+r.h/2;
+  R(cx-4,cy-2,3,4,'#fff');
+  ctx.fillStyle='#fff'; ctx.beginPath();
+  ctx.moveTo(cx-1,cy-4); ctx.lineTo(cx+3,cy-7); ctx.lineTo(cx+3,cy+7); ctx.lineTo(cx-1,cy+4); ctx.closePath(); ctx.fill();
+  if(muted){
+    ctx.strokeStyle='#ff6b5e'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(cx+7,cy-4); ctx.lineTo(cx+14,cy+4); ctx.moveTo(cx+14,cy-4); ctx.lineTo(cx+7,cy+4); ctx.stroke();
+  } else {
+    ctx.strokeStyle='#5fe07c'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(cx+5,cy,4,-0.7,0.7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx+5,cy,7,-0.7,0.7); ctx.stroke();
+  }
+}
+function drawStats(){
+  ctx.fillStyle='rgba(20,12,30,0.80)'; ctx.fillRect(0,0,VW,VH);
+  txt('STATISTICHE',VW/2,40,24,'#ffe066','center');
+  txt('Partite giocate: '+games,VW/2,66,12,'#fff','center');
+  txt('Metri totali: '+totM+' m',VW/2,84,12,'#fff','center');
+  txt('— TOP 5 FUGHE —',VW/2,110,12,'#ffd76e','center');
+  if(topRuns.length===0) txt('nessuna fuga ancora...',VW/2,138,10,'#bbb','center');
+  for(let i=0;i<topRuns.length;i++){
+    const r=topRuns[i], y=130+i*18;
+    txt((i+1)+'.',VW/2-116,y,12,'#ffe066','left');
+    txt(r.s+' pt',VW/2-92,y,12,'#fff','left');
+    txt(r.m+' m',VW/2+44,y,12,'#9fd0ff','left');
+  }
+  drawBtn(STATS_BACK,'INDIETRO','#ffd76e');
+}
 function drawPaused(){
   ctx.fillStyle='rgba(20,12,30,0.62)'; ctx.fillRect(0,0,VW,VH);
-  txt('PAUSA',VW/2,84,30,'#ffe066','center');
+  txt('PAUSA',VW/2,80,28,'#ffe066','center');
   drawBtn(RESUME_BTN,'RIPRENDI','#5fe07c');
   drawBtn(PMENU_BTN,'MENU','#ffd76e');
+  drawBtn(PMUTE_BTN, muted?'AUDIO: OFF':'AUDIO: ON', muted?'#ff8a7a':'#5fe07c');
 }
 function drawMenu(){
   ctx.fillStyle='rgba(20,12,30,0.45)'; ctx.fillRect(0,0,VW,VH);
@@ -749,6 +892,11 @@ function drawMenu(){
   }
   if(hi>0) txt('RECORD: '+hi,VW/2,262,9,'#ffd76e','center');
   if(isPortrait) txt('Ruota il telefono per giocare meglio',VW/2,16,9,'#fff','center');
+  // pulsanti mute + statistiche
+  drawMuteBtn(MUTE_BTN);
+  ctx.fillStyle='rgba(20,12,30,0.45)'; ctx.fillRect(STATS_BTN.x,STATS_BTN.y,STATS_BTN.w,STATS_BTN.h);
+  ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1; ctx.strokeRect(STATS_BTN.x+0.5,STATS_BTN.y+0.5,STATS_BTN.w-1,STATS_BTN.h-1);
+  txt('STATS',STATS_BTN.x+STATS_BTN.w/2,STATS_BTN.y+15,10,'#fff','center');
 }
 function drawDead(){
   ctx.fillStyle='rgba(20,12,30,0.62)'; ctx.fillRect(0,0,VW,VH);
@@ -762,8 +910,10 @@ function drawDead(){
   else txt('RECORD  '+hi,VW/2,184,11,'#ffd76e','center');
   if(newSkinMsg && Math.floor(tt*3)%2===1)
     txt('PIGIAMA '+newSkinMsg+' SBLOCCATO!',VW/2,206,12,'#5fe07c','center');
+  if(shareMsg && tt<shareMsgT) txt(shareMsg,VW/2,224,10,'#9fd0ff','center');
   if(deathT>0.55){
     drawBtn(DEAD_RETRY,'RIPROVA','#5fe07c');
+    drawBtn(DEAD_SHARE,'CONDIVIDI','#9fd0ff');
     drawBtn(DEAD_MENU,'MENU','#ffd76e');
   }
 }
@@ -773,7 +923,7 @@ function draw(){
   ctx.save();
   if(shake>0) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
 
-  const d=st==='menu'?menuDist:dist;
+  const d=(st==='menu'||st==='stats')?menuDist:dist;
   drawWorld(d);
   for(const e of ents){
     if(e.type==='pit')drawPit(e);
@@ -813,6 +963,9 @@ function draw(){
   // hint tutorial
   if(st==='play')for(const e of ents)drawHint(e);
 
+  // meteo (sopra la scena, sotto HUD/menu)
+  drawWeather(d);
+
   ctx.restore();
 
   // annuncio scenario
@@ -825,6 +978,7 @@ function draw(){
   if(st==='play'||st==='dying'||st==='paused')drawHUD();
   if(st==='paused')drawPaused();
   if(st==='menu')drawMenu();
+  if(st==='stats')drawStats();
   if(st==='dead'){ drawHUD(); drawDead(); }
 }
 
