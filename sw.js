@@ -1,5 +1,7 @@
-﻿// Service worker Nonno Run: cache-first, gioco completo offline.
-const CACHE = 'nonno-run-v4';
+// Service worker Nonno Run.
+// HTML: network-first (online prende sempre l'ultima versione, offline -> cache).
+// Asset statici: cache-first.
+const CACHE = 'nonno-run-v5';
 const FILES = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png',
@@ -16,7 +18,22 @@ self.addEventListener('activate', e => {
   );
 });
 self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then(r => r || fetch(e.request))
-  );
+  const req = e.request;
+  const isHTML = req.mode === 'navigate' ||
+    (req.headers.get('accept') || '').includes('text/html');
+  if (isHTML) {
+    // network-first: prova la rete, aggiorna la cache, altrimenti fallback offline
+    e.respondWith(
+      fetch(req).then(r => {
+        const copy = r.clone();
+        caches.open(CACHE).then(c => c.put('./index.html', copy));
+        return r;
+      }).catch(() => caches.match('./index.html').then(r => r || caches.match('./')))
+    );
+  } else {
+    // cache-first per gli asset
+    e.respondWith(
+      caches.match(req, { ignoreSearch: true }).then(r => r || fetch(req))
+    );
+  }
 });
