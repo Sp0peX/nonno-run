@@ -1,5 +1,5 @@
-// Service worker Nonno Run: cache-first, gioco completo offline.
-const CACHE = 'nonno-run-v1';
+﻿// Service worker Nonno Run: cache-first, gioco completo offline.
+const CACHE = 'nonno-run-v2';
 const FILES = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png',
