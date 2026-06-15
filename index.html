@@ -976,7 +976,18 @@ if(window.Capacitor){
   if(window.caches)
     caches.keys().then(ks=>ks.forEach(k=>caches.delete(k))).catch(()=>{});
 } else if('serviceWorker' in navigator && location.protocol!=='file:'){
-  addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+  addEventListener('load',()=>{
+    const hadController = !!navigator.serviceWorker.controller;
+    const reg=navigator.serviceWorker.register('sw.js');
+    reg.then(r=>{ if(r) setInterval(()=>r.update().catch(()=>{}), 60000); }).catch(()=>{});
+    let refreshing=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(refreshing)return; refreshing=true;
+      // auto-aggiornamento: quando il nuovo service worker prende il controllo,
+      // ricarica una volta sola (solo se era un update, non al primo install)
+      if(hadController) location.reload();
+    });
+  });
 }
 </script>
 </body>
