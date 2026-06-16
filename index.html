@@ -143,7 +143,7 @@ const DEAD_MENU ={x:314,y:238,w:108,h:26};
 const CUSTOM_BTN={x:VW/2-70,y:90,w:140,h:20};
 const CUST_DONE ={x:VW/2-50,y:242,w:100,h:24};
 const inRect=(xy,r)=>!!xy&&xy.x>=r.x&&xy.x<=r.x+r.w&&xy.y>=r.y&&xy.y<=r.y+r.h;
-function custRowAt(xy){ if(!xy)return -1; const i=Math.floor((xy.y-90)/19); return (xy.y>=90 && i>=0 && i<CATS.length)?i:-1; }
+function custRowAt(xy){ if(!xy)return -1; const i=Math.floor((xy.y-77)/19); return (xy.y>=77 && i>=0 && i<CATS.length)?i:-1; }
 function pause(){ if(st==='play'){ st='paused'; tone(330,220,0.1,'square',0.08); } }
 function resume(){ if(st==='paused'){ st='play'; last=performance.now(); tone(220,440,0.1,'square',0.08); } }
 function toMenu(){ reset(); st='menu'; tone(520,300,0.12,'square',0.08); }
