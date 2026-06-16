@@ -149,6 +149,17 @@ function burst(x,y,c,n){ for(let i=0;i<(n||14);i++){
 const PAUSE_BTN ={x:VW-32,y:6,w:26,h:24};
 const SET_BTN   ={x:6,y:6,w:30,h:22};
 const SET_DONE  ={x:VW/2-50,y:242,w:100,h:24};
+const GUIDE_BTN ={x:VW-92,y:6,w:22,h:22};
+const GUIDE_DONE={x:VW/2-50,y:242,w:100,h:24};
+const GUIDE=[
+  ['pillB','INVINCIBILE','immune a tutto per 10s'],
+  ['pillG','TURBO','piu veloce, punti x2'],
+  ['pillN','NIPOTINA','autopilota: schiva da sola'],
+  ['pillD','DENTIERA','scudo: sfonda il prossimo ostacolo'],
+  ['pillM','MAGNETE','attira le caramelle'],
+  ['pillF','RAZZO','mini-volo sopra le trappole'],
+  ['candy','CARAMELLA','gettoni da spendere al negozio'],
+];
 const SETTINGS_ROWS=[{k:'music',lab:'MUSICA'},{k:'sfx',lab:'EFFETTI SONORI'},{k:'vibe',lab:'VIBRAZIONE'}];
 function settingsRowAt(xy){
   if(!xy)return -1;
@@ -213,10 +224,11 @@ function act(a,xy){
     if(st==='play')pause();
     else if(st==='paused')resume();
     else if(st==='dead'&&deathT>0.4)toMenu();
-    else if(st==='stats'||st==='custom'||st==='shop'||st==='settings'){ resetConfirm=0; toMenu(); }
+    else if(st==='stats'||st==='custom'||st==='shop'||st==='settings'||st==='guide'){ resetConfirm=0; toMenu(); }
     musicMaybeStart(); return;
   }
   if(st==='stats'){ toMenu(); musicMaybeStart(); return; }
+  if(st==='guide'){ if(a==='tap'||a==='up')toMenu(); return; }
   if(st==='settings'){
     if(a==='tap'){
       if(inRect(xy,SET_DONE)){ resetConfirm=0; toMenu(); return; }
@@ -263,6 +275,7 @@ function act(a,xy){
   if(st==='menu'){
     if(a==='tap'){
       if(inRect(xy,SET_BTN)){ st='settings'; resetConfirm=0; tone(520,640,0.08,'square',0.08); return; }
+      if(inRect(xy,GUIDE_BTN)){ st='guide'; tone(520,640,0.08,'square',0.08); return; }
       if(inRect(xy,STATS_BTN)){ st='stats'; tone(520,640,0.08,'square',0.08); return; }
       if(inRect(xy,CUSTOM_BTN)){ st='custom'; catSel=0; tone(520,640,0.08,'square',0.08); return; }
       if(inRect(xy,SHOP_BTN)){ st='shop'; shopTab=0; shopSel=0; shopScroll=0; tone(520,640,0.08,'square',0.08); return; }
@@ -461,7 +474,7 @@ function update(dt){
   for(const p of parts){ p.t+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=p.g*dt; }
   parts=parts.filter(p=>p.t<p.life);
 
-  if(st==='menu'||st==='stats'||st==='custom'||st==='shop'||st==='settings'){ menuDist+=60*dt; lockFlash=Math.max(0,lockFlash-dt); return; }
+  if(st==='menu'||st==='stats'||st==='custom'||st==='shop'||st==='settings'||st==='guide'){ menuDist+=60*dt; lockFlash=Math.max(0,lockFlash-dt); return; }
 
   if(st==='play'){
     const sp=speed*(turbo>0?1.55:1);
@@ -1083,6 +1096,17 @@ function drawSettings(){
   txt('Nonno Run  •  musica: Eddie Keller - Deadbeat',VW/2,212,8,'#9a93a8','center');
   drawBtn(SET_DONE,'FATTO','#5fe07c');
 }
+function drawGuide(){
+  ctx.fillStyle='rgba(20,12,30,0.90)'; ctx.fillRect(0,0,VW,VH);
+  txt('GUIDA — POWER-UP',VW/2,28,17,'#ffe066','center');
+  for(let i=0;i<GUIDE.length;i++){
+    const g=GUIDE[i], y=58+i*25;
+    if(g[0]==='candy')drawCandy({x:54,y:y,bob:0}); else drawPill({x:54,y:y,type:g[0],bob:0});
+    txt(g[1],78,y-1,11,'#fff','left');
+    txt(g[2],78,y+10,8,'#bdbdbd','left');
+  }
+  drawBtn(GUIDE_DONE,'FATTO','#5fe07c');
+}
 function drawStats(){
   ctx.fillStyle='rgba(20,12,30,0.80)'; ctx.fillRect(0,0,VW,VH);
   txt('STATISTICHE',VW/2,40,24,'#ffe066','center');
@@ -1173,8 +1197,8 @@ function drawMenu(){
   const rows=[
     ['▲  TAP / SWIPE SU  —  salta il fosso','#fff'],
     ['▼  SWIPE GIÙ  —  scivola sotto il retino','#fff'],
-    ['PILLOLA BLU — invincibile 10s','#7da9ff'],
-    ['PILLOLA VERDE — turbo, punti x2','#5fe07c'],
+    ['raccogli le PILLOLE per i poteri','#7da9ff'],
+    ['tocca  ?  in alto per la guida completa','#5fe07c'],
   ];
   rows.forEach((r,i)=>{
     ctx.fillStyle='rgba(20,12,30,0.8)'; ctx.fillText(r[0],VW/2+1,176+i*13+1);
@@ -1184,8 +1208,11 @@ function drawMenu(){
     txt('— TOCCA PER SCAPPARE —',VW/2,248,13,'#ffe066','center');
   txt((hi>0?'RECORD '+hi+'   ':'')+'GETTONI '+coins,VW/2,262,9,'#ffd76e','center');
   if(isPortrait) txt('Ruota il telefono per giocare meglio',VW/2,16,9,'#fff','center');
-  // pulsanti impostazioni + statistiche
+  // pulsanti impostazioni + guida + statistiche
   drawGearBtn(SET_BTN);
+  ctx.fillStyle='rgba(20,12,30,0.45)'; ctx.fillRect(GUIDE_BTN.x,GUIDE_BTN.y,GUIDE_BTN.w,GUIDE_BTN.h);
+  ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1; ctx.strokeRect(GUIDE_BTN.x+0.5,GUIDE_BTN.y+0.5,GUIDE_BTN.w-1,GUIDE_BTN.h-1);
+  txt('?',GUIDE_BTN.x+GUIDE_BTN.w/2,GUIDE_BTN.y+16,14,'#fff','center');
   ctx.fillStyle='rgba(20,12,30,0.45)'; ctx.fillRect(STATS_BTN.x,STATS_BTN.y,STATS_BTN.w,STATS_BTN.h);
   ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1; ctx.strokeRect(STATS_BTN.x+0.5,STATS_BTN.y+0.5,STATS_BTN.w-1,STATS_BTN.h-1);
   txt('STATS',STATS_BTN.x+STATS_BTN.w/2,STATS_BTN.y+15,10,'#fff','center');
@@ -1215,7 +1242,7 @@ function draw(){
   ctx.save();
   if(shake>0) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
 
-  const d=(st==='menu'||st==='stats'||st==='custom'||st==='shop'||st==='settings')?menuDist:dist;
+  const d=(st==='menu'||st==='stats'||st==='custom'||st==='shop'||st==='settings'||st==='guide')?menuDist:dist;
   drawWorld(d);
   for(const e of ents){
     if(e.type==='pit')drawPit(e);
@@ -1282,6 +1309,7 @@ function draw(){
   if(st==='custom')drawCustom();
   if(st==='shop')drawShop();
   if(st==='settings')drawSettings();
+  if(st==='guide')drawGuide();
   if(st==='dead'){ drawHUD(); drawDead(); }
 }
 
