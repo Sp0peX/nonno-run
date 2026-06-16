@@ -108,12 +108,19 @@ let games=+(localStorage.getItem('nonnoRunGames')||0);
 let totM=+(localStorage.getItem('nonnoRunTotM')||0);
 let topRuns=[]; try{topRuns=JSON.parse(localStorage.getItem('nonnoRunTop')||'[]');}catch(e){topRuns=[];}
 let shareMsg='', shareMsgT=0;
+let coins=+(localStorage.getItem('nonnoRunCoins')||0);
+let upg={inv:0,turbo:0,nip:0,mag:0,fly:0,shield:0,candy:0,start:0};
+try{ Object.assign(upg, JSON.parse(localStorage.getItem('nonnoRunUpg')||'{}')); }catch(e){}
+let eggsBought=new Set();
+try{ (JSON.parse(localStorage.getItem('nonnoRunEggs')||'[]')||[]).forEach(k=>eggsBought.add(k)); }catch(e){}
+let shopTab=0, shopSel=0, shopScroll=0, shopMsg='', shopMsgT=0;
+const SHOP_VIS=9;
 
 function reset(){
   dist=0; score=0; speed=170; spawnT=1.5;
   P={y:0,vy:0,ground:true,slide:0,buf:0,qSlide:false,run:0};
   ents=[]; parts=[]; inv=0; turbo=0; shake=0;
-  nip=0; mag=0; fly=0; shield=0;
+  nip=0; mag=0; fly=0; shield=upg.start?1:0;
   newHi=false; firstPit=true; firstNet=true; firstCart=true; firstBird=true;
   netHit=null; fallRot=0; curBi=0; biomeName=''; biomeFlash=0;
 }
@@ -144,13 +151,18 @@ const STATS_BACK={x:VW/2-60,y:238,w:120,h:26};
 const DEAD_RETRY={x:58,y:238,w:108,h:26};
 const DEAD_SHARE={x:186,y:238,w:108,h:26};
 const DEAD_MENU ={x:314,y:238,w:108,h:26};
-const CUSTOM_BTN={x:VW/2-70,y:90,w:140,h:20};
+const CUSTOM_BTN={x:VW/2-146,y:90,w:140,h:20};
+const SHOP_BTN  ={x:VW/2+6,y:90,w:140,h:20};
 const CUST_DONE ={x:VW/2-50,y:242,w:100,h:24};
+const SHOP_TAB1 ={x:VW/2-122,y:42,w:118,h:18};
+const SHOP_TAB2 ={x:VW/2+4,y:42,w:118,h:18};
+const SHOP_DONE ={x:VW/2-50,y:242,w:100,h:24};
 const inRect=(xy,r)=>!!xy&&xy.x>=r.x&&xy.x<=r.x+r.w&&xy.y>=r.y&&xy.y<=r.y+r.h;
 function custRowAt(xy){ if(!xy)return -1; const i=Math.floor((xy.y-77)/19); return (xy.y>=77 && i>=0 && i<CATS.length)?i:-1; }
+function shopRowAt(xy){ if(!xy)return -1; const r=Math.floor((xy.y-65)/18); if(r<0||r>=SHOP_VIS)return -1; const i=shopScroll+r, n=(shopTab===0?UPGRADES:EGGS).length; return i<n?i:-1; }
 function pause(){ if(st==='play'){ st='paused'; tone(330,220,0.1,'square',0.08); } }
 function resume(){ if(st==='paused'){ st='play'; last=performance.now(); tone(220,440,0.1,'square',0.08); } }
-function toMenu(){ reset(); st='menu'; tone(520,300,0.12,'square',0.08); }
+function toMenu(){ localStorage.setItem('nonnoRunCoins',coins); reset(); st='menu'; tone(520,300,0.12,'square',0.08); }
 function retry(){ reset(); st='play'; }
 function shareScore(){
   const m=Math.floor(dist/30), s=Math.floor(score);
@@ -181,10 +193,25 @@ function act(a,xy){
     if(st==='play')pause();
     else if(st==='paused')resume();
     else if(st==='dead'&&deathT>0.4)toMenu();
-    else if(st==='stats'||st==='custom')toMenu();
+    else if(st==='stats'||st==='custom'||st==='shop')toMenu();
     musicMaybeStart(); return;
   }
   if(st==='stats'){ toMenu(); musicMaybeStart(); return; }
+  if(st==='shop'){
+    if(a==='left'){ shopTab=0; shopSel=0; shopScroll=0; return; }
+    if(a==='right'){ shopTab=1; shopSel=0; shopScroll=0; return; }
+    if(a==='up'){ shopSel=Math.max(0,shopSel-1); if(shopSel<shopScroll)shopScroll=shopSel; return; }
+    if(a==='down'){ const n=(shopTab===0?UPGRADES:EGGS).length; shopSel=Math.min(n-1,shopSel+1); if(shopSel>=shopScroll+SHOP_VIS)shopScroll=shopSel-SHOP_VIS+1; return; }
+    if(a==='buy'){ shopTab===0?buyUpgrade(shopSel):buyEgg(shopSel); return; }
+    if(a==='tap'){
+      if(inRect(xy,SHOP_DONE)){ toMenu(); return; }
+      if(inRect(xy,SHOP_TAB1)){ shopTab=0; shopSel=0; shopScroll=0; return; }
+      if(inRect(xy,SHOP_TAB2)){ shopTab=1; shopSel=0; shopScroll=0; return; }
+      const row=shopRowAt(xy);
+      if(row>=0){ shopSel=row; shopTab===0?buyUpgrade(row):buyEgg(row); }
+    }
+    return;
+  }
   if(st==='custom'){
     if(a==='left'){ changeOpt(catSel,-1); return; }
     if(a==='right'){ changeOpt(catSel,1); return; }
@@ -203,6 +230,7 @@ function act(a,xy){
       if(inRect(xy,MUTE_BTN)){ toggleMute(); return; }
       if(inRect(xy,STATS_BTN)){ st='stats'; tone(520,640,0.08,'square',0.08); return; }
       if(inRect(xy,CUSTOM_BTN)){ st='custom'; catSel=0; tone(520,640,0.08,'square',0.08); return; }
+      if(inRect(xy,SHOP_BTN)){ st='shop'; shopTab=0; shopSel=0; shopScroll=0; tone(520,640,0.08,'square',0.08); return; }
     }
     startRun(); musicMaybeStart(); return;
   }
@@ -255,6 +283,7 @@ addEventListener('keydown',e=>{
   if(e.code==='ArrowLeft')act('left');
   if(e.code==='ArrowRight')act('right');
   if(e.code==='Escape'||e.code==='KeyP')act('pause');
+  if(e.code==='Enter')act('buy');
 });
 
 /* ---------------- spawn ---------------- */
@@ -343,6 +372,7 @@ function gameOver(){
   const m={pit:PIT_MSG,net:NET_MSG,cart:CART_MSG,bird:BIRD_MSG}[deathKind]||PIT_MSG;
   deathMsg=m[Math.random()*m.length|0];
   // statistiche
+  localStorage.setItem('nonnoRunCoins',coins);
   games++; localStorage.setItem('nonnoRunGames',games);
   totM+=Math.floor(dist/30); localStorage.setItem('nonnoRunTotM',totM);
   topRuns.push({s:Math.floor(score),m:Math.floor(dist/30)});
@@ -350,7 +380,7 @@ function gameOver(){
   localStorage.setItem('nonnoRunTop',JSON.stringify(topRuns));
 }
 function smashTrap(e,cx,cy,col){
-  if(inv<=0)shield=0;            // se non c'è invincibilità, consuma lo scudo dentiera
+  if(inv<=0)shield=Math.max(0,shield-1);  // se non c'è invincibilità, consuma una carica scudo
   e.dead=true; score+=250; SFX.smash(); shake=5;
   burst(cx,cy,col,16); burst(cx,cy,'#fff',8); vib(20);
 }
@@ -369,18 +399,18 @@ function collide(){
       if(fly<=0 && hit(pl,r)){ if(prot)smashTrap(e,e.x,GY-38,'#6b7280'); else { crash('bird'); return; } }
     } else if(e.type==='candy'){
       const r={x:e.x-7,y:e.y-7,w:14,h:14};
-      if(hit(pl,r)){ e.dead=true; score+=25; SFX.coin(); vib(8);
+      if(hit(pl,r)){ e.dead=true; coins+=1+upg.candy; score+=25+upg.candy*15; SFX.coin(); vib(8);
         part(e.x,e.y,0,-40,80,.3,'#ff6f91',2); }
     } else if(e.type.startsWith('pill')){
       const r={x:e.x-9,y:e.y-9,w:18,h:18};
       if(hit(pl,r)){
         e.dead=true;
-        if(e.type==='pillB'){ inv=10; SFX.pillB(); burst(e.x,e.y,'#5d93ff',16); }
-        else if(e.type==='pillG'){ turbo=8; SFX.pillG(); burst(e.x,e.y,'#3ecf5a',16); }
-        else if(e.type==='pillN'){ nip=8; SFX.power(); burst(e.x,e.y,'#ff8ac4',16); }
-        else if(e.type==='pillD'){ shield=1; SFX.power(); burst(e.x,e.y,'#cfe6e6',16); }
-        else if(e.type==='pillM'){ mag=7; SFX.power(); burst(e.x,e.y,'#f24b4b',16); }
-        else if(e.type==='pillF'){ fly=4; SFX.power(); burst(e.x,e.y,'#ffb24a',16); }
+        if(e.type==='pillB'){ inv=10+upg.inv*2; SFX.pillB(); burst(e.x,e.y,'#5d93ff',16); }
+        else if(e.type==='pillG'){ turbo=8+upg.turbo*2; SFX.pillG(); burst(e.x,e.y,'#3ecf5a',16); }
+        else if(e.type==='pillN'){ nip=8+upg.nip*2; SFX.power(); burst(e.x,e.y,'#ff8ac4',16); }
+        else if(e.type==='pillD'){ shield=Math.min(1+upg.shield, shield+1); SFX.power(); burst(e.x,e.y,'#cfe6e6',16); }
+        else if(e.type==='pillM'){ mag=7+upg.mag*2; SFX.power(); burst(e.x,e.y,'#f24b4b',16); }
+        else if(e.type==='pillF'){ fly=4+upg.fly*1.5; SFX.power(); burst(e.x,e.y,'#ffb24a',16); }
         score+=100*(turbo>0?2:1); vib(15);
       }
     }
@@ -396,7 +426,7 @@ function update(dt){
   for(const p of parts){ p.t+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=p.g*dt; }
   parts=parts.filter(p=>p.t<p.life);
 
-  if(st==='menu'||st==='stats'||st==='custom'){ menuDist+=60*dt; lockFlash=Math.max(0,lockFlash-dt); return; }
+  if(st==='menu'||st==='stats'||st==='custom'||st==='shop'){ menuDist+=60*dt; lockFlash=Math.max(0,lockFlash-dt); return; }
 
   if(st==='play'){
     const sp=speed*(turbo>0?1.55:1);
@@ -453,7 +483,7 @@ function update(dt){
       const py=GY+P.y-17;
       for(const e of ents){ if(e.type==='candy'){
         const dx=PX-e.x, dy=py-e.y, dd=Math.hypot(dx,dy)||1;
-        if(dd<85){ e.x+=dx/dd*240*dt; e.y+=dy/dd*240*dt; }
+        if(dd<85+upg.mag*22){ e.x+=dx/dd*240*dt; e.y+=dy/dd*240*dt; }
       }}
     }
     collide();
@@ -539,7 +569,7 @@ try{ const s=JSON.parse(localStorage.getItem('nonnoRunCustom'));
 if(localStorage.getItem('nonnoRunCustom')===null){ // migra vecchia scelta pigiama
   sel[3]=Math.min(+(localStorage.getItem('nonnoRunSkin')||0),SKINS.length-1);
 }
-const optUnlocked=(ci,i)=>hi>=CATS[ci].req(CATS[ci].list[i]);
+const optUnlocked=(ci,i)=>hi>=CATS[ci].req(CATS[ci].list[i]) || eggsBought.has(ci+':'+i);
 function gi(ci){ return optUnlocked(ci,sel[ci])?sel[ci]:0; }
 function applyCustom(){
   const sk=SKINTONES[gi(0)]; CC.skin=sk.c; CC.skin2=sk.d;
@@ -556,6 +586,35 @@ function changeOpt(ci,dir){
   sel[ci]=(sel[ci]+dir+n)%n; saveCustom(); applyCustom(); tone(420,560,0.06,'square',0.08);
 }
 applyCustom();
+
+/* ---------------- negozio / abilità ---------------- */
+const UPGRADES=[
+  {key:'inv',   lab:'INVINCIBILITA +2s',  max:3, cost:l=>20+l*15},
+  {key:'turbo', lab:'TURBO +2s',          max:3, cost:l=>20+l*15},
+  {key:'nip',   lab:'NIPOTINA +2s',       max:3, cost:l=>25+l*15},
+  {key:'mag',   lab:'MAGNETE +raggio',    max:3, cost:l=>15+l*10},
+  {key:'fly',   lab:'RAZZO +1.5s',        max:3, cost:l=>25+l*15},
+  {key:'shield',lab:'DENTIERA +1 carica', max:2, cost:l=>30+l*20},
+  {key:'candy', lab:'CARAMELLE +valore',  max:3, cost:l=>20+l*15},
+  {key:'start', lab:'PARTI CON SCUDO',    max:1, cost:l=>60},
+];
+const EGGS=[];
+CATS.forEach((c,ci)=>c.list.forEach((o,i)=>{ const r=c.req(o); if(r>0)EGGS.push({ci,i,lab:c.lab+': '+c.name(o),cost:Math.max(10,Math.round(r/100))}); }));
+function eggOwned(e){ return eggsBought.has(e.ci+':'+e.i) || hi>=CATS[e.ci].req(CATS[e.ci].list[e.i]); }
+function saveShop(){ localStorage.setItem('nonnoRunCoins',coins); localStorage.setItem('nonnoRunUpg',JSON.stringify(upg)); localStorage.setItem('nonnoRunEggs',JSON.stringify([...eggsBought])); }
+function buyUpgrade(i){
+  const u=UPGRADES[i], lv=upg[u.key]||0;
+  if(lv>=u.max){ shopMsg='GIA AL MASSIMO'; shopMsgT=tt+1.4; return; }
+  const cost=u.cost(lv);
+  if(coins<cost){ shopMsg='GETTONI INSUFFICIENTI'; shopMsgT=tt+1.4; tone(200,140,0.12,'square',0.10); return; }
+  coins-=cost; upg[u.key]=lv+1; saveShop(); SFX.power(); shopMsg='POTENZIATO!'; shopMsgT=tt+1.2;
+}
+function buyEgg(i){
+  const e=EGGS[i];
+  if(eggOwned(e)){ shopMsg='GIA SBLOCCATO'; shopMsgT=tt+1.4; return; }
+  if(coins<e.cost){ shopMsg='GETTONI INSUFFICIENTI'; shopMsgT=tt+1.4; tone(200,140,0.12,'square',0.10); return; }
+  coins-=e.cost; eggsBought.add(e.ci+':'+e.i); saveShop(); applyCustom(); SFX.power(); shopMsg='SBLOCCATO!'; shopMsgT=tt+1.2;
+}
 function R(x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(x|0,y|0,w,h); }
 
 /* ---------------- nonno ---------------- */
@@ -937,11 +996,11 @@ function drawHUD(){
   txt('RECORD '+hi,VW-6,b.y+b.h+12,9,'#ffd76e','right');
   // barre power-up attivi
   const bars=[];
-  if(inv>0)  bars.push(['pillB',inv/10,'#4d84f7']);
-  if(turbo>0)bars.push(['pillG',turbo/8,'#3ecf5a']);
-  if(nip>0)  bars.push(['pillN',nip/8,'#ff8ac4']);
-  if(mag>0)  bars.push(['pillM',mag/7,'#f24b4b']);
-  if(fly>0)  bars.push(['pillF',fly/4,'#ffb24a']);
+  if(inv>0)  bars.push(['pillB',inv/(10+upg.inv*2),'#4d84f7']);
+  if(turbo>0)bars.push(['pillG',turbo/(8+upg.turbo*2),'#3ecf5a']);
+  if(nip>0)  bars.push(['pillN',nip/(8+upg.nip*2),'#ff8ac4']);
+  if(mag>0)  bars.push(['pillM',mag/(7+upg.mag*2),'#f24b4b']);
+  if(fly>0)  bars.push(['pillF',fly/(4+upg.fly*1.5),'#ffb24a']);
   const W=62, total=bars.length*W + (shield>0?22:0);
   let bx=VW/2-total/2+8;
   for(const b of bars){
@@ -950,9 +1009,10 @@ function drawHUD(){
     ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.strokeRect(bx+11.5,12.5,43,7);
     bx+=W;
   }
-  if(shield>0){ // dentiera-scudo (carica singola)
+  if(shield>0){ // dentiera-scudo
     R(bx-2,12,12,4,'#fff'); R(bx-2,16,12,3,'#f0a8b8');
     for(let i=0;i<12;i+=2)R(bx-2+i,12,1,4,'#d8d8d8');
+    if(shield>1) txt('x'+shield,bx+12,20,9,'#fff','left');
   }
 }
 function drawBtn(r,label,col){
@@ -1009,6 +1069,40 @@ function drawCustom(){
   }
   drawBtn(CUST_DONE,'FATTO','#5fe07c');
 }
+function drawTab(r,label,active){
+  ctx.fillStyle=active?'rgba(255,224,102,0.18)':'rgba(255,255,255,0.06)';
+  ctx.fillRect(r.x,r.y,r.w,r.h);
+  ctx.strokeStyle=active?'#ffe066':'rgba(255,255,255,0.4)'; ctx.lineWidth=1;
+  ctx.strokeRect(r.x+0.5,r.y+0.5,r.w-1,r.h-1);
+  txt(label,r.x+r.w/2,r.y+13,9,active?'#ffe066':'#bbb','center');
+}
+function drawShop(){
+  ctx.fillStyle='rgba(20,12,30,0.88)'; ctx.fillRect(0,0,VW,VH);
+  txt('NEGOZIO',VW/2,22,18,'#ffe066','center');
+  txt('GETTONI: '+coins,VW/2,38,11,'#ffd76e','center');
+  drawTab(SHOP_TAB1,'POTENZIAMENTI',shopTab===0);
+  drawTab(SHOP_TAB2,'EASTER EGG',shopTab===1);
+  const list=shopTab===0?UPGRADES:EGGS;
+  shopScroll=Math.max(0,Math.min(shopScroll, Math.max(0,list.length-SHOP_VIS)));
+  for(let r=0;r<Math.min(SHOP_VIS,list.length);r++){
+    const i=shopScroll+r, y=78+r*18;
+    if(i===shopSel){ ctx.fillStyle='rgba(255,255,255,0.09)'; ctx.fillRect(40,y-13,400,17); }
+    if(shopTab===0){
+      const u=list[i], lv=upg[u.key]||0, maxed=lv>=u.max, cost=u.cost(lv);
+      txt(u.lab,50,y,10,'#fff','left');
+      txt('Lv '+lv+'/'+u.max,300,y,9,'#9fd0ff','left');
+      txt(maxed?'MAX':(cost+'g'),432,y,10, maxed?'#5fe07c':(coins>=cost?'#ffd76e':'#ff8a7a'),'right');
+    } else {
+      const e=list[i], owned=eggOwned(e);
+      txt(e.lab,50,y,9,'#fff','left');
+      txt(owned?'OK':(e.cost+'g'),432,y,10, owned?'#5fe07c':(coins>=e.cost?'#ffd76e':'#ff8a7a'),'right');
+    }
+  }
+  if(shopScroll>0) txt('▲',458,74,11,'#ffe066','right');
+  if(shopScroll+SHOP_VIS<list.length) txt('▼',458,224,11,'#ffe066','right');
+  if(shopMsg && tt<shopMsgT) txt(shopMsg,VW/2,232,11,'#ffe066','center');
+  drawBtn(SHOP_DONE,'FATTO','#5fe07c');
+}
 function drawPaused(){
   ctx.fillStyle='rgba(20,12,30,0.62)'; ctx.fillRect(0,0,VW,VH);
   txt('PAUSA',VW/2,80,28,'#ffe066','center');
@@ -1021,6 +1115,7 @@ function drawMenu(){
   txt('NONNO RUN',VW/2,62,34,'#ffe066','center');
   txt('~ FUGA DAL RICOVERO ~',VW/2,82,12,'#fff','center');
   drawBtn(CUSTOM_BTN,'PERSONALIZZA','#9fd0ff');
+  drawBtn(SHOP_BTN,'NEGOZIO','#ffd76e');
   drawGrandpa(VW/2,152,'run',tt*9);
   // pannello istruzioni
   ctx.fillStyle='rgba(20,12,30,0.72)';
@@ -1040,7 +1135,7 @@ function drawMenu(){
   });
   if(Math.floor(tt*2)%2===0)
     txt('— TOCCA PER SCAPPARE —',VW/2,248,13,'#ffe066','center');
-  if(hi>0) txt('RECORD: '+hi,VW/2,262,9,'#ffd76e','center');
+  txt((hi>0?'RECORD '+hi+'   ':'')+'GETTONI '+coins,VW/2,262,9,'#ffd76e','center');
   if(isPortrait) txt('Ruota il telefono per giocare meglio',VW/2,16,9,'#fff','center');
   // pulsanti mute + statistiche
   drawMuteBtn(MUTE_BTN);
@@ -1073,7 +1168,7 @@ function draw(){
   ctx.save();
   if(shake>0) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
 
-  const d=(st==='menu'||st==='stats'||st==='custom')?menuDist:dist;
+  const d=(st==='menu'||st==='stats'||st==='custom'||st==='shop')?menuDist:dist;
   drawWorld(d);
   for(const e of ents){
     if(e.type==='pit')drawPit(e);
@@ -1138,6 +1233,7 @@ function draw(){
   if(st==='menu')drawMenu();
   if(st==='stats')drawStats();
   if(st==='custom')drawCustom();
+  if(st==='shop')drawShop();
   if(st==='dead'){ drawHUD(); drawDead(); }
 }
 
