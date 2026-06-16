@@ -47,10 +47,13 @@ addEventListener('resize',fit); fit();
 let AC=null;
 function ac(){ if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} }
   if(AC&&AC.state==='suspended')AC.resume(); return AC; }
-let muted=localStorage.getItem('nonnoRunMuted')==='1';
-function vib(p){ if(!muted && navigator.vibrate){ try{navigator.vibrate(p);}catch(e){} } }
+let set={music:1,sfx:1,vibe:1};
+try{ Object.assign(set, JSON.parse(localStorage.getItem('nonnoRunSet')||'{}')); }catch(e){}
+if(localStorage.getItem('nonnoRunSet')===null && localStorage.getItem('nonnoRunMuted')==='1'){ set.music=0; set.sfx=0; }
+function saveSet(){ localStorage.setItem('nonnoRunSet',JSON.stringify(set)); }
+function vib(p){ if(set.vibe && navigator.vibrate){ try{navigator.vibrate(p);}catch(e){} } }
 function tone(f0,f1,dur,type,vol,delay){
-  const a=ac(); if(!a||muted)return;
+  const a=ac(); if(!a||!set.sfx)return;
   try{
     const t0=a.currentTime+(delay||0);
     const o=a.createOscillator(),g=a.createGain();
@@ -85,12 +88,13 @@ function musicInit(){
   bgm=new Audio('music.mp3');
   bgm.loop=true; bgm.volume=0.55; bgm.preload='auto';
 }
-function musicStart(){ if(muted)return; musicInit(); const p=bgm.play(); if(p&&p.catch)p.catch(()=>{}); }
+function musicStart(){ if(!set.music)return; musicInit(); const p=bgm.play(); if(p&&p.catch)p.catch(()=>{}); }
 function musicStop(){ if(bgm){ try{bgm.pause();}catch(e){} } }
-function musicMaybeStart(){ if(!muted)musicStart(); }
-function toggleMute(){
-  muted=!muted; localStorage.setItem('nonnoRunMuted',muted?'1':'0');
-  if(muted)musicStop(); else { ac(); musicStart(); }
+function musicMaybeStart(){ if(set.music)musicStart(); }
+function audioMuted(){ return !(set.music||set.sfx); }
+function toggleMute(){ // muto rapido: spegne/accende musica+effetti insieme
+  const on=set.music||set.sfx; set.music=set.sfx=on?0:1; saveSet();
+  if(!set.music)musicStop(); else { ac(); musicStart(); }
 }
 
 /* ---------------- stato ---------------- */
@@ -115,6 +119,7 @@ let eggsBought=new Set();
 try{ (JSON.parse(localStorage.getItem('nonnoRunEggs')||'[]')||[]).forEach(k=>eggsBought.add(k)); }catch(e){}
 let shopTab=0, shopSel=0, shopScroll=0, shopMsg='', shopMsgT=0;
 const SHOP_VIS=9;
+let resetConfirm=0, setMsg='', setMsgT=0;
 
 function reset(){
   dist=0; score=0; speed=170; spawnT=1.5;
@@ -142,7 +147,22 @@ function burst(x,y,c,n){ for(let i=0;i<(n||14);i++){
 
 /* ---------------- input ---------------- */
 const PAUSE_BTN ={x:VW-32,y:6,w:26,h:24};
-const MUTE_BTN  ={x:6,y:6,w:30,h:22};
+const SET_BTN   ={x:6,y:6,w:30,h:22};
+const SET_DONE  ={x:VW/2-50,y:242,w:100,h:24};
+const SETTINGS_ROWS=[{k:'music',lab:'MUSICA'},{k:'sfx',lab:'EFFETTI SONORI'},{k:'vibe',lab:'VIBRAZIONE'}];
+function settingsRowAt(xy){
+  if(!xy)return -1;
+  for(let i=0;i<3;i++){ const y=82+i*26; if(xy.y>=y-13&&xy.y<=y+11)return i; }
+  if(xy.y>=149&&xy.y<=171)return 3; // azzera progressi
+  return -1;
+}
+function doReset(){
+  ['nonnoRunHi','nonnoRunCoins','nonnoRunUpg','nonnoRunEggs','nonnoRunCustom','nonnoRunTop','nonnoRunGames','nonnoRunTotM','nonnoRunSkin'].forEach(k=>localStorage.removeItem(k));
+  hi=0; coins=0; games=0; totM=0; topRuns=[];
+  upg={inv:0,turbo:0,nip:0,mag:0,fly:0,shield:0,candy:0,start:0};
+  eggsBought=new Set(); sel=CATS.map(()=>0); catSel=0; applyCustom();
+  setMsg='PROGRESSI AZZERATI'; setMsgT=tt+2.2;
+}
 const STATS_BTN ={x:VW-66,y:6,w:60,h:22};
 const RESUME_BTN={x:VW/2-74,y:112,w:148,h:28};
 const PMENU_BTN ={x:VW/2-74,y:148,w:148,h:28};
@@ -193,10 +213,25 @@ function act(a,xy){
     if(st==='play')pause();
     else if(st==='paused')resume();
     else if(st==='dead'&&deathT>0.4)toMenu();
-    else if(st==='stats'||st==='custom'||st==='shop')toMenu();
+    else if(st==='stats'||st==='custom'||st==='shop'||st==='settings'){ resetConfirm=0; toMenu(); }
     musicMaybeStart(); return;
   }
   if(st==='stats'){ toMenu(); musicMaybeStart(); return; }
+  if(st==='settings'){
+    if(a==='tap'){
+      if(inRect(xy,SET_DONE)){ resetConfirm=0; toMenu(); return; }
+      const i=settingsRowAt(xy);
+      if(i>=0 && i<3){ const k=SETTINGS_ROWS[i].k; set[k]=set[k]?0:1; saveSet(); resetConfirm=0;
+        if(k==='music'){ set.music?(ac(),musicStart()):musicStop(); }
+        if(k==='vibe'&&set.vibe)vib(20);
+        tone(set[k]?660:330,set[k]?880:220,0.08,'square',0.08);
+      } else if(i===3){
+        if(resetConfirm>0){ doReset(); resetConfirm=0; }
+        else { resetConfirm=1; setMsg='SICURO? TOCCA ANCORA'; setMsgT=tt+2.5; tone(440,300,0.1,'square',0.1); }
+      } else resetConfirm=0;
+    }
+    return;
+  }
   if(st==='shop'){
     if(a==='left'){ shopTab=0; shopSel=0; shopScroll=0; return; }
     if(a==='right'){ shopTab=1; shopSel=0; shopScroll=0; return; }
@@ -227,7 +262,7 @@ function act(a,xy){
   }
   if(st==='menu'){
     if(a==='tap'){
-      if(inRect(xy,MUTE_BTN)){ toggleMute(); return; }
+      if(inRect(xy,SET_BTN)){ st='settings'; resetConfirm=0; tone(520,640,0.08,'square',0.08); return; }
       if(inRect(xy,STATS_BTN)){ st='stats'; tone(520,640,0.08,'square',0.08); return; }
       if(inRect(xy,CUSTOM_BTN)){ st='custom'; catSel=0; tone(520,640,0.08,'square',0.08); return; }
       if(inRect(xy,SHOP_BTN)){ st='shop'; shopTab=0; shopSel=0; shopScroll=0; tone(520,640,0.08,'square',0.08); return; }
@@ -426,7 +461,7 @@ function update(dt){
   for(const p of parts){ p.t+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=p.g*dt; }
   parts=parts.filter(p=>p.t<p.life);
 
-  if(st==='menu'||st==='stats'||st==='custom'||st==='shop'){ menuDist+=60*dt; lockFlash=Math.max(0,lockFlash-dt); return; }
+  if(st==='menu'||st==='stats'||st==='custom'||st==='shop'||st==='settings'){ menuDist+=60*dt; lockFlash=Math.max(0,lockFlash-dt); return; }
 
   if(st==='play'){
     const sp=speed*(turbo>0?1.55:1);
@@ -1020,21 +1055,33 @@ function drawBtn(r,label,col){
   ctx.strokeStyle=col; ctx.lineWidth=2; ctx.strokeRect(r.x+1,r.y+1,r.w-2,r.h-2);
   txt(label,r.x+r.w/2,r.y+r.h/2+5,14,col,'center');
 }
-function drawMuteBtn(r){
+function drawGearBtn(r){
   ctx.fillStyle='rgba(20,12,30,0.45)'; ctx.fillRect(r.x,r.y,r.w,r.h);
   ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1; ctx.strokeRect(r.x+0.5,r.y+0.5,r.w-1,r.h-1);
-  const cx=r.x+9, cy=r.y+r.h/2;
-  R(cx-4,cy-2,3,4,'#fff');
-  ctx.fillStyle='#fff'; ctx.beginPath();
-  ctx.moveTo(cx-1,cy-4); ctx.lineTo(cx+3,cy-7); ctx.lineTo(cx+3,cy+7); ctx.lineTo(cx-1,cy+4); ctx.closePath(); ctx.fill();
-  if(muted){
-    ctx.strokeStyle='#ff6b5e'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(cx+7,cy-4); ctx.lineTo(cx+14,cy+4); ctx.moveTo(cx+14,cy-4); ctx.lineTo(cx+7,cy+4); ctx.stroke();
-  } else {
-    ctx.strokeStyle='#5fe07c'; ctx.lineWidth=1.5;
-    ctx.beginPath(); ctx.arc(cx+5,cy,4,-0.7,0.7); ctx.stroke();
-    ctx.beginPath(); ctx.arc(cx+5,cy,7,-0.7,0.7); ctx.stroke();
+  const cx=r.x+r.w/2, cy=r.y+r.h/2;
+  ctx.fillStyle='#fff';
+  for(let a=0;a<6;a++){ const an=a/6*Math.PI*2+tt*0.4; R(Math.round(cx+Math.cos(an)*7)-1,Math.round(cy+Math.sin(an)*7)-1,3,3,'#fff'); }
+  ctx.beginPath(); ctx.arc(cx,cy,5,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx,cy,2.2,0,Math.PI*2); ctx.fillStyle='rgba(20,12,30,0.85)'; ctx.fill();
+}
+function drawSettings(){
+  ctx.fillStyle='rgba(20,12,30,0.90)'; ctx.fillRect(0,0,VW,VH);
+  txt('IMPOSTAZIONI',VW/2,32,18,'#ffe066','center');
+  for(let i=0;i<SETTINGS_ROWS.length;i++){
+    const y=82+i*26, on=!!set[SETTINGS_ROWS[i].k], tx=320, tw=64;
+    txt(SETTINGS_ROWS[i].lab,96,y,12,'#fff','left');
+    ctx.fillStyle=on?'rgba(95,224,124,0.20)':'rgba(255,138,122,0.18)'; ctx.fillRect(tx,y-11,tw,16);
+    ctx.strokeStyle=on?'#5fe07c':'#ff8a7a'; ctx.lineWidth=1; ctx.strokeRect(tx+0.5,y-10.5,tw-1,15);
+    R(on?tx+tw-15:tx+3, y-9, 12,12, on?'#5fe07c':'#ff8a7a');
+    txt(on?'ON':'OFF', on?tx+15:tx+tw-15, y, 9, '#fff','center');
   }
+  // azzera progressi
+  ctx.fillStyle='rgba(255,80,80,0.14)'; ctx.fillRect(120,149,240,20);
+  ctx.strokeStyle='#ff6b5e'; ctx.lineWidth=1; ctx.strokeRect(120.5,149.5,239,19);
+  txt(resetConfirm>0?'SICURO? TOCCA ANCORA':'AZZERA PROGRESSI', VW/2,163,11,'#ff8a7a','center');
+  if(setMsg && tt<setMsgT) txt(setMsg,VW/2,190,11,'#5fe07c','center');
+  txt('Nonno Run  •  musica: Eddie Keller - Deadbeat',VW/2,212,8,'#9a93a8','center');
+  drawBtn(SET_DONE,'FATTO','#5fe07c');
 }
 function drawStats(){
   ctx.fillStyle='rgba(20,12,30,0.80)'; ctx.fillRect(0,0,VW,VH);
@@ -1108,7 +1155,7 @@ function drawPaused(){
   txt('PAUSA',VW/2,80,28,'#ffe066','center');
   drawBtn(RESUME_BTN,'RIPRENDI','#5fe07c');
   drawBtn(PMENU_BTN,'MENU','#ffd76e');
-  drawBtn(PMUTE_BTN, muted?'AUDIO: OFF':'AUDIO: ON', muted?'#ff8a7a':'#5fe07c');
+  drawBtn(PMUTE_BTN, audioMuted()?'AUDIO: OFF':'AUDIO: ON', audioMuted()?'#ff8a7a':'#5fe07c');
 }
 function drawMenu(){
   ctx.fillStyle='rgba(20,12,30,0.45)'; ctx.fillRect(0,0,VW,VH);
@@ -1137,8 +1184,8 @@ function drawMenu(){
     txt('— TOCCA PER SCAPPARE —',VW/2,248,13,'#ffe066','center');
   txt((hi>0?'RECORD '+hi+'   ':'')+'GETTONI '+coins,VW/2,262,9,'#ffd76e','center');
   if(isPortrait) txt('Ruota il telefono per giocare meglio',VW/2,16,9,'#fff','center');
-  // pulsanti mute + statistiche
-  drawMuteBtn(MUTE_BTN);
+  // pulsanti impostazioni + statistiche
+  drawGearBtn(SET_BTN);
   ctx.fillStyle='rgba(20,12,30,0.45)'; ctx.fillRect(STATS_BTN.x,STATS_BTN.y,STATS_BTN.w,STATS_BTN.h);
   ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1; ctx.strokeRect(STATS_BTN.x+0.5,STATS_BTN.y+0.5,STATS_BTN.w-1,STATS_BTN.h-1);
   txt('STATS',STATS_BTN.x+STATS_BTN.w/2,STATS_BTN.y+15,10,'#fff','center');
@@ -1168,7 +1215,7 @@ function draw(){
   ctx.save();
   if(shake>0) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
 
-  const d=(st==='menu'||st==='stats'||st==='custom'||st==='shop')?menuDist:dist;
+  const d=(st==='menu'||st==='stats'||st==='custom'||st==='shop'||st==='settings')?menuDist:dist;
   drawWorld(d);
   for(const e of ents){
     if(e.type==='pit')drawPit(e);
@@ -1234,6 +1281,7 @@ function draw(){
   if(st==='stats')drawStats();
   if(st==='custom')drawCustom();
   if(st==='shop')drawShop();
+  if(st==='settings')drawSettings();
   if(st==='dead'){ drawHUD(); drawDead(); }
 }
 
