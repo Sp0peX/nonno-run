@@ -23,6 +23,15 @@
 <canvas id="g" width="480" height="270"></canvas>
 <script>
 'use strict';
+// Storage sicuro: su itch.io (iframe sandbox) localStorage puo' lanciare
+// un'eccezione e bloccare il gioco. In quel caso usiamo un fallback in memoria.
+const LS=(function(){
+  try{ var s=window['localStorage']; s.setItem('__nr','1'); s.removeItem('__nr'); return s; }
+  catch(e){ var m={}; return {
+    getItem:function(k){ return Object.prototype.hasOwnProperty.call(m,k)?m[k]:null; },
+    setItem:function(k,v){ m[k]=''+v; },
+    removeItem:function(k){ delete m[k]; } }; }
+})();
 /* ============================================================
    NONNO RUN — Fuga dal Ricovero
    Endless runner: il nonno Gino scappa dalla casa di riposo.
@@ -48,9 +57,9 @@ let AC=null;
 function ac(){ if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} }
   if(AC&&AC.state==='suspended')AC.resume(); return AC; }
 let set={music:1,sfx:1,vibe:1};
-try{ Object.assign(set, JSON.parse(localStorage.getItem('nonnoRunSet')||'{}')); }catch(e){}
-if(localStorage.getItem('nonnoRunSet')===null && localStorage.getItem('nonnoRunMuted')==='1'){ set.music=0; set.sfx=0; }
-function saveSet(){ localStorage.setItem('nonnoRunSet',JSON.stringify(set)); }
+try{ Object.assign(set, JSON.parse(LS.getItem('nonnoRunSet')||'{}')); }catch(e){}
+if(LS.getItem('nonnoRunSet')===null && LS.getItem('nonnoRunMuted')==='1'){ set.music=0; set.sfx=0; }
+function saveSet(){ LS.setItem('nonnoRunSet',JSON.stringify(set)); }
 function vib(p){ if(set.vibe && navigator.vibrate){ try{navigator.vibrate(p);}catch(e){} } }
 function tone(f0,f1,dur,type,vol,delay){
   const a=ac(); if(!a||!set.sfx)return;
@@ -107,23 +116,23 @@ let nip=0, mag=0, fly=0, shield=0;
 let deathT=0, deathKind='', deathMsg='', fallX=0, fallRot=0, netHit=null;
 let newHi=false, firstPit=true, firstNet=true, firstCart=true, firstBird=true;
 let curBi=0, biomeName='', biomeFlash=0;
-let hi=+(localStorage.getItem('nonnoRunHi')||0);
-let games=+(localStorage.getItem('nonnoRunGames')||0);
-let totM=+(localStorage.getItem('nonnoRunTotM')||0);
-let topRuns=[]; try{topRuns=JSON.parse(localStorage.getItem('nonnoRunTop')||'[]');}catch(e){topRuns=[];}
+let hi=+(LS.getItem('nonnoRunHi')||0);
+let games=+(LS.getItem('nonnoRunGames')||0);
+let totM=+(LS.getItem('nonnoRunTotM')||0);
+let topRuns=[]; try{topRuns=JSON.parse(LS.getItem('nonnoRunTop')||'[]');}catch(e){topRuns=[];}
 let shareMsg='', shareMsgT=0;
-let coins=+(localStorage.getItem('nonnoRunCoins')||0);
+let coins=+(LS.getItem('nonnoRunCoins')||0);
 let upg={inv:0,turbo:0,nip:0,mag:0,fly:0,shield:0,candy:0,start:0,revive:0};
-try{ Object.assign(upg, JSON.parse(localStorage.getItem('nonnoRunUpg')||'{}')); }catch(e){}
+try{ Object.assign(upg, JSON.parse(LS.getItem('nonnoRunUpg')||'{}')); }catch(e){}
 let eggsBought=new Set();
-try{ (JSON.parse(localStorage.getItem('nonnoRunEggs')||'[]')||[]).forEach(k=>eggsBought.add(k)); }catch(e){}
+try{ (JSON.parse(LS.getItem('nonnoRunEggs')||'[]')||[]).forEach(k=>eggsBought.add(k)); }catch(e){}
 let shopTab=0, shopSel=0, shopScroll=0, shopMsg='', shopMsgT=0;
 const SHOP_VIS=9;
 let resetConfirm=0, setMsg='', setMsgT=0;
 let mult=1, combo=0, runDodge=0, runPow=0, revivesLeft=0, reviveT=0;
-let totCandy=+(localStorage.getItem('nonnoRunCandyTot')||0);
-let missions=[]; try{missions=JSON.parse(localStorage.getItem('nonnoRunMis')||'[]');}catch(e){missions=[];}
-let achDone=new Set(); try{(JSON.parse(localStorage.getItem('nonnoRunAch')||'[]')||[]).forEach(k=>achDone.add(k));}catch(e){}
+let totCandy=+(LS.getItem('nonnoRunCandyTot')||0);
+let missions=[]; try{missions=JSON.parse(LS.getItem('nonnoRunMis')||'[]');}catch(e){missions=[];}
+let achDone=new Set(); try{(JSON.parse(LS.getItem('nonnoRunAch')||'[]')||[]).forEach(k=>achDone.add(k));}catch(e){}
 let misMsg='', misMsgT=0;
 
 function reset(){
@@ -180,7 +189,7 @@ function settingsRowAt(xy){
   return -1;
 }
 function doReset(){
-  ['nonnoRunHi','nonnoRunCoins','nonnoRunUpg','nonnoRunEggs','nonnoRunCustom','nonnoRunTop','nonnoRunGames','nonnoRunTotM','nonnoRunSkin'].forEach(k=>localStorage.removeItem(k));
+  ['nonnoRunHi','nonnoRunCoins','nonnoRunUpg','nonnoRunEggs','nonnoRunCustom','nonnoRunTop','nonnoRunGames','nonnoRunTotM','nonnoRunSkin'].forEach(k=>LS.removeItem(k));
   hi=0; coins=0; games=0; totM=0; topRuns=[];
   upg={inv:0,turbo:0,nip:0,mag:0,fly:0,shield:0,candy:0,start:0};
   eggsBought=new Set(); sel=CATS.map(()=>0); catSel=0; applyCustom();
@@ -207,7 +216,7 @@ function custRowAt(xy){ if(!xy)return -1; const i=Math.floor((xy.y-77)/19); retu
 function shopRowAt(xy){ if(!xy)return -1; const r=Math.floor((xy.y-65)/18); if(r<0||r>=SHOP_VIS)return -1; const i=shopScroll+r, n=(shopTab===0?UPGRADES:EGGS).length; return i<n?i:-1; }
 function pause(){ if(st==='play'){ st='paused'; tone(330,220,0.1,'square',0.08); } }
 function resume(){ if(st==='paused'){ st='play'; last=performance.now(); tone(220,440,0.1,'square',0.08); } }
-function toMenu(){ localStorage.setItem('nonnoRunCoins',coins); localStorage.setItem('nonnoRunCandyTot',totCandy); reset(); st='menu'; tone(520,300,0.12,'square',0.08); }
+function toMenu(){ LS.setItem('nonnoRunCoins',coins); LS.setItem('nonnoRunCandyTot',totCandy); reset(); st='menu'; tone(520,300,0.12,'square',0.08); }
 function retry(){ reset(); st='play'; }
 function shareScore(){
   const m=Math.floor(dist/30), s=Math.floor(score);
@@ -431,7 +440,7 @@ function gameOver(){
   const s=Math.floor(score);
   if(s>hi){
     const prev=hi;
-    hi=s; newHi=true; localStorage.setItem('nonnoRunHi',hi); SFX.record();
+    hi=s; newHi=true; LS.setItem('nonnoRunHi',hi); SFX.record();
     const nuove=[];
     for(const c of CATS)for(const o of c.list){ const r=c.req(o); if(r>prev&&r<=hi)nuove.push(c.name(o)); }
     if(nuove.length)newSkinMsg=nuove.slice(0,4).join(' + ');
@@ -439,13 +448,13 @@ function gameOver(){
   const m={pit:PIT_MSG,net:NET_MSG,cart:CART_MSG,bird:BIRD_MSG}[deathKind]||PIT_MSG;
   deathMsg=m[Math.random()*m.length|0];
   // statistiche
-  localStorage.setItem('nonnoRunCoins',coins);
-  localStorage.setItem('nonnoRunCandyTot',totCandy);
-  games++; localStorage.setItem('nonnoRunGames',games);
-  totM+=Math.floor(dist/30); localStorage.setItem('nonnoRunTotM',totM);
+  LS.setItem('nonnoRunCoins',coins);
+  LS.setItem('nonnoRunCandyTot',totCandy);
+  games++; LS.setItem('nonnoRunGames',games);
+  totM+=Math.floor(dist/30); LS.setItem('nonnoRunTotM',totM);
   topRuns.push({s:Math.floor(score),m:Math.floor(dist/30)});
   topRuns.sort((a,b)=>b.s-a.s); topRuns=topRuns.slice(0,5);
-  localStorage.setItem('nonnoRunTop',JSON.stringify(topRuns));
+  LS.setItem('nonnoRunTop',JSON.stringify(topRuns));
   saveMissions(); checkMissions(); checkAch();
 }
 function smashTrap(e,cx,cy,col){
@@ -650,10 +659,10 @@ const CC={skin:'#eec39a',skin2:'#d9a066',hair:'#f2f2f2',hairStyle:0,
           pj:'#9cc3ea',pjd:'#6f9cc7',pjPat:0,cane:'#a06b3a',caneType:0};
 let sel=CATS.map(()=>0), catSel=0;
 let lockFlash=0, newSkinMsg='';
-try{ const s=JSON.parse(localStorage.getItem('nonnoRunCustom'));
+try{ const s=JSON.parse(LS.getItem('nonnoRunCustom'));
   if(Array.isArray(s)) sel=CATS.map((c,i)=>Math.min(Math.max(0,s[i]|0),c.list.length-1)); }catch(e){}
-if(localStorage.getItem('nonnoRunCustom')===null){ // migra vecchia scelta pigiama
-  sel[3]=Math.min(+(localStorage.getItem('nonnoRunSkin')||0),SKINS.length-1);
+if(LS.getItem('nonnoRunCustom')===null){ // migra vecchia scelta pigiama
+  sel[3]=Math.min(+(LS.getItem('nonnoRunSkin')||0),SKINS.length-1);
 }
 const optUnlocked=(ci,i)=>hi>=CATS[ci].req(CATS[ci].list[i]) || eggsBought.has(ci+':'+i);
 function gi(ci){ return optUnlocked(ci,sel[ci])?sel[ci]:0; }
@@ -666,7 +675,7 @@ function applyCustom(){
   CC.cane=CANECOLS[gi(5)].c;
   CC.caneType=gi(6);
 }
-function saveCustom(){ localStorage.setItem('nonnoRunCustom',JSON.stringify(sel)); }
+function saveCustom(){ LS.setItem('nonnoRunCustom',JSON.stringify(sel)); }
 function changeOpt(ci,dir){
   const n=CATS[ci].list.length;
   sel[ci]=(sel[ci]+dir+n)%n; saveCustom(); applyCustom(); tone(420,560,0.06,'square',0.08);
@@ -688,7 +697,7 @@ const UPGRADES=[
 const EGGS=[];
 CATS.forEach((c,ci)=>c.list.forEach((o,i)=>{ const r=c.req(o); if(r>0)EGGS.push({ci,i,lab:c.lab+': '+c.name(o),cost:Math.max(10,Math.round(r/100))}); }));
 function eggOwned(e){ return eggsBought.has(e.ci+':'+e.i) || hi>=CATS[e.ci].req(CATS[e.ci].list[e.i]); }
-function saveShop(){ localStorage.setItem('nonnoRunCoins',coins); localStorage.setItem('nonnoRunUpg',JSON.stringify(upg)); localStorage.setItem('nonnoRunEggs',JSON.stringify([...eggsBought])); }
+function saveShop(){ LS.setItem('nonnoRunCoins',coins); LS.setItem('nonnoRunUpg',JSON.stringify(upg)); LS.setItem('nonnoRunEggs',JSON.stringify([...eggsBought])); }
 function buyUpgrade(i){
   const u=UPGRADES[i], lv=upg[u.key]||0;
   if(lv>=u.max){ shopMsg='GIA AL MASSIMO'; shopMsgT=tt+1.4; return; }
@@ -718,12 +727,12 @@ function newMission(){
 function misText(m){ return {dist:'Corri '+m.tgt+'m in una corsa', candy:'Raccogli '+m.tgt+' caramelle',
   dodge:'Schiva '+m.tgt+' trappole in una corsa', power:'Usa '+m.tgt+' power-up', score:'Fai '+m.tgt+' punti in una corsa'}[m.t]; }
 if(!Array.isArray(missions)||missions.length<3) missions=[newMission(),newMission(),newMission()];
-function saveMissions(){ localStorage.setItem('nonnoRunMis',JSON.stringify(missions)); }
+function saveMissions(){ LS.setItem('nonnoRunMis',JSON.stringify(missions)); }
 function checkMissions(){
   let ch=false;
   for(let i=0;i<missions.length;i++){ const m=missions[i];
     if(m.p>=m.tgt){ coins+=m.r; misMsg='MISSIONE FATTA +'+m.r; misMsgT=tt+2.2; SFX.power(); missions[i]=newMission(); ch=true; } }
-  if(ch){ saveMissions(); localStorage.setItem('nonnoRunCoins',coins); }
+  if(ch){ saveMissions(); LS.setItem('nonnoRunCoins',coins); }
 }
 const ACHS=[
   {id:'d500', txt:'500 m totali',        tgt:500,  get:()=>totM,     r:25},
@@ -736,7 +745,7 @@ const ACHS=[
 function checkAch(){
   let ch=false;
   for(const a of ACHS){ if(!achDone.has(a.id) && a.get()>=a.tgt){ achDone.add(a.id); coins+=a.r; misMsg='OBIETTIVO! +'+a.r; misMsgT=tt+2.2; SFX.record(); ch=true; } }
-  if(ch){ localStorage.setItem('nonnoRunAch',JSON.stringify([...achDone])); localStorage.setItem('nonnoRunCoins',coins); }
+  if(ch){ LS.setItem('nonnoRunAch',JSON.stringify([...achDone])); LS.setItem('nonnoRunCoins',coins); }
 }
 function doRevive(){
   revivesLeft--; inv=Math.max(inv,2.6);
@@ -1458,7 +1467,7 @@ if(window.Capacitor){
     navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
   if(window.caches)
     caches.keys().then(ks=>ks.forEach(k=>caches.delete(k))).catch(()=>{});
-} else if('serviceWorker' in navigator && location.protocol!=='file:'){
+} else if('serviceWorker' in navigator && location.protocol!=='file:' && window.self===window.top){
   addEventListener('load',()=>{
     const hadController = !!navigator.serviceWorker.controller;
     const reg=navigator.serviceWorker.register('sw.js');
