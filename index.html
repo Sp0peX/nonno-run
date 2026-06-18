@@ -112,7 +112,7 @@ let st='menu', tt=0, menuDist=0;
 let dist=0, score=0, speed=170, spawnT=1.5;
 let P=null, ents=[], parts=[];
 let inv=0, turbo=0, shake=0, sparkT=0;
-let nip=0, mag=0, fly=0, shield=0, flip=0;
+let mag=0, fly=0, shield=0, flip=0;
 let deathT=0, deathKind='', deathMsg='', fallX=0, fallRot=0, netHit=null;
 let newHi=false, firstPit=true, firstNet=true, firstCart=true, firstBird=true, firstMalus=true;
 let curBi=0, biomeName='', biomeFlash=0;
@@ -122,7 +122,7 @@ let totM=+(LS.getItem('nonnoRunTotM')||0);
 let topRuns=[]; try{topRuns=JSON.parse(LS.getItem('nonnoRunTop')||'[]');}catch(e){topRuns=[];}
 let shareMsg='', shareMsgT=0;
 let coins=+(LS.getItem('nonnoRunCoins')||0);
-let upg={inv:0,turbo:0,nip:0,mag:0,fly:0,shield:0,candy:0,start:0,revive:0};
+let upg={inv:0,turbo:0,mag:0,fly:0,shield:0,candy:0,start:0,revive:0};
 try{ Object.assign(upg, JSON.parse(LS.getItem('nonnoRunUpg')||'{}')); }catch(e){}
 let eggsBought=new Set();
 try{ (JSON.parse(LS.getItem('nonnoRunEggs')||'[]')||[]).forEach(k=>eggsBought.add(k)); }catch(e){}
@@ -139,7 +139,7 @@ function reset(){
   dist=0; score=0; speed=170; spawnT=1.5;
   P={y:0,vy:0,ground:true,slide:0,buf:0,qSlide:false,run:0};
   ents=[]; parts=[]; inv=0; turbo=0; shake=0;
-  nip=0; mag=0; fly=0; shield=upg.start?1:0; flip=0;
+  mag=0; fly=0; shield=upg.start?1:0; flip=0;
   mult=1; combo=0; runDodge=0; runPow=0; revivesLeft=upg.revive||0; reviveT=0;
   newHi=false; firstPit=true; firstNet=true; firstCart=true; firstBird=true;
   netHit=null; fallRot=0; curBi=0; biomeName=''; biomeFlash=0; firstMalus=true;
@@ -169,7 +169,6 @@ const GUIDE_DONE={x:VW/2-50,y:242,w:100,h:24};
 const GUIDE=[
   ['pillB','INVINCIBILE','immune a tutto 10s'],
   ['pillG','TURBO','veloce, punti x2'],
-  ['pillN','NIPOTINA','autopilota'],
   ['pillD','DENTIERA','scudo: 1 colpo'],
   ['pillM','MAGNETE','attira caramelle'],
   ['pillF','RAZZO','mini-volo'],
@@ -192,7 +191,7 @@ function settingsRowAt(xy){
 function doReset(){
   ['nonnoRunHi','nonnoRunCoins','nonnoRunUpg','nonnoRunEggs','nonnoRunCustom','nonnoRunTop','nonnoRunGames','nonnoRunTotM','nonnoRunSkin'].forEach(k=>LS.removeItem(k));
   hi=0; coins=0; games=0; totM=0; topRuns=[];
-  upg={inv:0,turbo:0,nip:0,mag:0,fly:0,shield:0,candy:0,start:0};
+  upg={inv:0,turbo:0,mag:0,fly:0,shield:0,candy:0,start:0,revive:0};
   eggsBought=new Set(); sel=CATS.map(()=>0); catSel=0; applyCustom();
   setMsg='PROGRESSI AZZERATI'; setMsgT=tt+2.2;
 }
@@ -369,13 +368,13 @@ function spawnCandies(x){
     ents.push({type:'candy', x:x+i*16, y:yy, bob:Math.random()*6});
   }
 }
-const PILL_POOL=['pillG','pillB','pillN','pillD','pillM','pillF'];
-const PILL_W=[22,18,16,14,16,14];
+const PILL_POOL=['pillG','pillB','pillD','pillM','pillF'];
+const PILL_W=[22,18,14,16,14];
 function spawn(sp){
   const x=VW+60, r=Math.random(), m=dist/30;
   // periodo di grazia: verso la fine di turbo/razzo/nipotina niente trappole,
   // solo caramelle, cosi non si muore appena finisce l'effetto
-  const grace=(turbo>0&&turbo<1.4)||(fly>0&&fly<1.4)||(nip>0&&nip<1.4);
+  const grace=(turbo>0&&turbo<1.4)||(fly>0&&fly<1.4);
   if(grace){
     spawnCandies(x);
     spawnT=Math.max(0.55,(0.8+Math.random()*0.7)*(300/sp));
@@ -508,7 +507,6 @@ function collide(){
         e.dead=true;
         if(e.type==='pillB'){ inv=10+upg.inv*2; SFX.pillB(); burst(e.x,e.y,'#5d93ff',16); }
         else if(e.type==='pillG'){ turbo=8+upg.turbo*2; SFX.pillG(); burst(e.x,e.y,'#3ecf5a',16); }
-        else if(e.type==='pillN'){ nip=8+upg.nip*2; SFX.power(); burst(e.x,e.y,'#ff8ac4',16); }
         else if(e.type==='pillD'){ shield=Math.min(1+upg.shield, shield+1); SFX.power(); burst(e.x,e.y,'#cfe6e6',16); }
         else if(e.type==='pillM'){ mag=7+upg.mag*2; SFX.power(); burst(e.x,e.y,'#f24b4b',16); }
         else if(e.type==='pillF'){ fly=4+upg.fly*1.5; SFX.power(); burst(e.x,e.y,'#ffb24a',16); }
@@ -536,19 +534,9 @@ function update(dt){
     speed=170+Math.min(180,dist*0.012);
     score+=dt*sp*0.06*(turbo>0?2:1)*mult;
     inv=Math.max(0,inv-dt); turbo=Math.max(0,turbo-dt);
-    nip=Math.max(0,nip-dt); mag=Math.max(0,mag-dt); fly=Math.max(0,fly-dt); flip=Math.max(0,flip-dt);
+    mag=Math.max(0,mag-dt); fly=Math.max(0,fly-dt); flip=Math.max(0,flip-dt);
     biomeFlash=Math.max(0,biomeFlash-dt);
     spawnT-=dt; if(spawnT<=0)spawn(sp);
-
-    // nipotina: pilota automatico (salta/scivola le trappole)
-    if(nip>0 && fly<=0){
-      for(const e of ents){
-        if(e.type==='pit'){ if(P.ground && e.x-PX<56 && e.x-PX>0)doJump(); }
-        else if(e.type==='cart'){ if(P.ground && e.x-PX<50 && e.x-PX>0)doJump(); }
-        else if(e.type==='net'){ const nx=e.x-44; if(P.ground&&P.slide<=0&&nx-PX<46&&nx-PX>0)doSlide(); }
-        else if(e.type==='bird'){ if(P.ground&&P.slide<=0&&e.x-PX<44&&e.x-PX>0)doSlide(); }
-      }
-    }
 
     const bi=Math.floor((dist/30)/BIOME_M);
     if(bi!==curBi){ curBi=bi; biomeName=BIOMES[bi%BIOMES.length].nome; biomeFlash=2.4; }
@@ -707,7 +695,6 @@ applyCustom();
 const UPGRADES=[
   {key:'inv',   lab:'INVINCIBILITA +2s',  max:3, cost:l=>20+l*15},
   {key:'turbo', lab:'TURBO +2s',          max:3, cost:l=>20+l*15},
-  {key:'nip',   lab:'NIPOTINA +2s',       max:3, cost:l=>25+l*15},
   {key:'mag',   lab:'MAGNETE +raggio',    max:3, cost:l=>15+l*10},
   {key:'fly',   lab:'RAZZO +1.5s',        max:3, cost:l=>25+l*15},
   {key:'shield',lab:'DENTIERA +1 carica', max:2, cost:l=>30+l*20},
@@ -905,7 +892,6 @@ function drawNet(e,withGrandpa){
 const PILLCOL={
   pillB:['#4d84f7','#2f5cc4',[90,140,255]],
   pillG:['#3ecf5a','#27963e',[70,210,110]],
-  pillN:['#ff8ac4','#d85a9c',[255,140,200]],
   pillD:['#dfeaea','#9bbcbc',[210,235,235]],
   pillM:['#f24b4b','#b32f2f',[245,90,90]],
   pillF:['#ffb24a','#c87f1e',[255,180,90]],
@@ -929,22 +915,6 @@ function drawCandy(e){
   ctx.strokeStyle='#ff6f91'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(x,y,6,0.3,2.4); ctx.stroke();
   ctx.strokeStyle='#cfd6df'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(x,y,6.5,0,Math.PI*2); ctx.stroke();
   R(x-3,y-3,2,2,'#fff');
-}
-function drawNipotina(cx,by,ph){
-  ctx.save(); ctx.translate(cx|0,by|0);
-  const A=Math.round(Math.sin(ph)*4), bob=-Math.round(Math.abs(Math.cos(ph)));
-  ctx.translate(0,bob);
-  R(-2-A,-8,3,8,'#f0cba6'); R(0+A,-8,3,8,'#f0cba6');   // gambe
-  R(-3-A,-2,4,2,'#c0433f'); R(0+A,-2,4,2,'#c0433f');   // scarpine
-  R(-5,-18,11,11,'#ff8ac4'); R(-6,-9,13,3,'#ff8ac4');  // vestito
-  R(-5,-12,11,2,'#e85fa3');
-  R(-4,-26,9,8,'#f3d0aa');                             // testa
-  R(-5,-28,11,3,'#7a4b2a');                            // capelli
-  R(-7,-26,2,7,'#7a4b2a'); R(6,-26,2,7,'#7a4b2a');     // codini
-  R(-7,-19,2,2,'#ff8ac4'); R(6,-19,2,2,'#ff8ac4');     // fiocchi
-  R(-1,-23,1,1,'#333'); R(2,-23,1,1,'#333');           // occhi
-  R(0,-20,2,1,'#c06');                                 // sorriso
-  ctx.restore();
 }
 
 /* ---------------- mondo / scenari ---------------- */
@@ -1181,7 +1151,6 @@ function drawHUD(){
   const bars=[];
   if(inv>0)  bars.push(['pillB',inv/(10+upg.inv*2),'#4d84f7']);
   if(turbo>0)bars.push(['pillG',turbo/(8+upg.turbo*2),'#3ecf5a']);
-  if(nip>0)  bars.push(['pillN',nip/(8+upg.nip*2),'#ff8ac4']);
   if(mag>0)  bars.push(['pillM',mag/(7+upg.mag*2),'#f24b4b']);
   if(fly>0)  bars.push(['pillF',fly/(4+upg.fly*1.5),'#ffb24a']);
   const W=62, total=bars.length*W + (shield>0?22:0);
@@ -1452,7 +1421,6 @@ function draw(){
   }
   // nonno
   if(st==='play'||st==='paused'){
-    if(nip>0) drawNipotina(PX-22, GY, P.run*0.9);   // nipotina accanto
     if(inv>0 && !(inv<2.5 && Math.floor(tt*8)%2===0)){
       const g=ctx.createRadialGradient(PX,GY+P.y-17,4,PX,GY+P.y-17,30);
       g.addColorStop(0,'rgba(120,170,255,0.45)'); g.addColorStop(1,'rgba(120,170,255,0)');
