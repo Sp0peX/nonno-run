@@ -1,7 +1,7 @@
 // Service worker Nonno Run.
 // HTML: network-first (online prende sempre l'ultima versione, offline -> cache).
 // Asset statici: cache-first.
-const CACHE = 'nonno-run-v14';
+const CACHE = 'nonno-run-v15';
 const FILES = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png',

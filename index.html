@@ -112,9 +112,9 @@ let st='menu', tt=0, menuDist=0;
 let dist=0, score=0, speed=170, spawnT=1.5;
 let P=null, ents=[], parts=[];
 let inv=0, turbo=0, shake=0, sparkT=0;
-let nip=0, mag=0, fly=0, shield=0;
+let nip=0, mag=0, fly=0, shield=0, flip=0;
 let deathT=0, deathKind='', deathMsg='', fallX=0, fallRot=0, netHit=null;
-let newHi=false, firstPit=true, firstNet=true, firstCart=true, firstBird=true;
+let newHi=false, firstPit=true, firstNet=true, firstCart=true, firstBird=true, firstMalus=true;
 let curBi=0, biomeName='', biomeFlash=0;
 let hi=+(LS.getItem('nonnoRunHi')||0);
 let games=+(LS.getItem('nonnoRunGames')||0);
@@ -139,10 +139,10 @@ function reset(){
   dist=0; score=0; speed=170; spawnT=1.5;
   P={y:0,vy:0,ground:true,slide:0,buf:0,qSlide:false,run:0};
   ents=[]; parts=[]; inv=0; turbo=0; shake=0;
-  nip=0; mag=0; fly=0; shield=upg.start?1:0;
+  nip=0; mag=0; fly=0; shield=upg.start?1:0; flip=0;
   mult=1; combo=0; runDodge=0; runPow=0; revivesLeft=upg.revive||0; reviveT=0;
   newHi=false; firstPit=true; firstNet=true; firstCart=true; firstBird=true;
-  netHit=null; fallRot=0; curBi=0; biomeName=''; biomeFlash=0;
+  netHit=null; fallRot=0; curBi=0; biomeName=''; biomeFlash=0; firstMalus=true;
 }
 const md=(v,m)=>((v%m)+m)%m;
 const hit=(a,b)=>a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
@@ -180,6 +180,7 @@ const TRAPS=[
   ['net','RETINO','SCIVOLA','down'],
   ['cart','CARRELLO','SALTA','up'],
   ['bird','PICCIONE','SCIVOLA','down'],
+  ['malus','NIPOTE AVIDA','SALTA','up'],
 ];
 const SETTINGS_ROWS=[{k:'music',lab:'MUSICA'},{k:'sfx',lab:'EFFETTI SONORI'},{k:'vibe',lab:'VIBRAZIONE'}];
 function settingsRowAt(xy){
@@ -325,6 +326,7 @@ function act(a,xy){
   }
   if(st==='play'){
     if(a==='tap'&&inRect(xy,PAUSE_BTN)){ pause(); return; }
+    if(flip>0) a=(a==='down')?'up':'down';   // nipotina cattiva: comandi invertiti
     a==='down'?doSlide():doJump();
   }
 }
@@ -385,6 +387,10 @@ function spawn(sp){
     let tot=PILL_W.reduce((a,b)=>a+b,0), rr=Math.random()*tot, ti=0;
     for(let i=0;i<PILL_POOL.length;i++){ if(rr<PILL_W[i]){ti=i;break;} rr-=PILL_W[i]; }
     ents.push({type:PILL_POOL[ti], x, y:GY-(Math.random()<0.5?26:58), bob:Math.random()*6});
+  } else if(r<0.36 && m>50){
+    const e={type:'malus',x};
+    if(firstMalus){e.hint='SALTA!';firstMalus=false;}
+    ents.push(e);
   } else {
     const traps=['pit','net'];
     if(m>120)traps.push('cart');
@@ -484,6 +490,13 @@ function collide(){
     } else if(e.type==='bird'){
       const r={x:e.x-8,y:GY-46,w:18,h:16};
       if(fly<=0 && hit(pl,r)){ if(prot)smashTrap(e,e.x,GY-38,'#6b7280'); else { crash('bird'); return; } }
+    } else if(e.type==='malus'){
+      const r={x:e.x-7,y:GY-28,w:14,h:28};
+      if(fly<=0 && hit(pl,r)){
+        e.dead=true;
+        if(inv>0){ score+=150; SFX.smash(); shake=4; burst(e.x,GY-16,'#a64bb0',14); }
+        else { flip=6; SFX.caught(); shake=5; vib(120); burst(e.x,GY-16,'#a64bb0',16); }
+      }
     } else if(e.type==='candy'){
       const r={x:e.x-7,y:e.y-7,w:14,h:14};
       if(hit(pl,r)){ e.dead=true; coins+=1+upg.candy; score+=25+upg.candy*15; totCandy++;
@@ -523,7 +536,7 @@ function update(dt){
     speed=170+Math.min(180,dist*0.012);
     score+=dt*sp*0.06*(turbo>0?2:1)*mult;
     inv=Math.max(0,inv-dt); turbo=Math.max(0,turbo-dt);
-    nip=Math.max(0,nip-dt); mag=Math.max(0,mag-dt); fly=Math.max(0,fly-dt);
+    nip=Math.max(0,nip-dt); mag=Math.max(0,mag-dt); fly=Math.max(0,fly-dt); flip=Math.max(0,flip-dt);
     biomeFlash=Math.max(0,biomeFlash-dt);
     spawnT-=dt; if(spawnT<=0)spawn(sp);
 
@@ -1118,11 +1131,28 @@ function drawBird(e){
   R(x+9,y-4,3,2,'#e2a02e');                                      // becco
   R(x+6,y-6,1,1,'#0a0a0a');                                      // occhio
 }
+function drawMalus(e){
+  const x=e.x|0;
+  // aura viola "cattiva"
+  const pul=0.12+Math.sin(tt*5)*0.05;
+  ctx.fillStyle='rgba(150,60,180,'+pul.toFixed(2)+')';
+  ctx.beginPath(); ctx.arc(x,GY-16,16,0,Math.PI*2); ctx.fill();
+  R(x-3,GY-8,3,8,'#e0b48f'); R(x+1,GY-8,3,8,'#e0b48f');     // gambe
+  R(x-4,GY-2,4,2,'#2a2030'); R(x+1,GY-2,4,2,'#2a2030');     // scarpine scure
+  R(x-5,GY-20,11,12,'#7a3a8a'); R(x-6,GY-9,13,3,'#7a3a8a'); // vestito viola
+  R(x-5,GY-14,11,2,'#5e2a6e');
+  R(x-4,GY-28,9,8,'#f0c79e');                               // testa
+  R(x-5,GY-30,11,3,'#5a3a2a');                              // capelli scuri
+  R(x-7,GY-28,2,7,'#5a3a2a'); R(x+6,GY-28,2,7,'#5a3a2a');   // codini
+  R(x-4,GY-25,3,1,'#3a2a1a'); R(x+1,GY-25,3,1,'#3a2a1a');   // sopracciglia arrabbiate
+  R(x-2,GY-24,1,1,'#c00'); R(x+2,GY-24,1,1,'#c00');         // occhi rossi
+  R(x-2,GY-21,5,1,'#7a2a2a');                               // ghigno
+}
 function drawHint(e){
   if(!e.hint||e.x>VW-30)return;
   let hx=e.x;
   if(e.type==='pit')hx=e.x+e.w/2; else if(e.type==='net')hx=e.x-44;
-  const up=(e.type==='pit'||e.type==='cart');
+  const up=(e.type==='pit'||e.type==='cart'||e.type==='malus');
   const y=132+Math.sin(tt*6)*4;
   ctx.font='bold 12px monospace'; ctx.textAlign='center';
   ctx.fillStyle='#1a1426'; ctx.fillText(e.hint,hx+1,y+1);
@@ -1170,6 +1200,12 @@ function drawHUD(){
   // toast missioni / seconda chance
   if(tt<misMsgT) txt(misMsg,VW/2,82,12,'#5fe07c','center');
   if(tt<reviveT && Math.floor(tt*6)%2===0) txt('SECONDA CHANCE!',VW/2,120,20,'#ff8ac4','center');
+  // malus: comandi invertiti
+  if(flip>0){
+    if(Math.floor(tt*6)%2===0) txt('COMANDI INVERTITI! ↑↓',VW/2,102,14,'#d36ad6','center');
+    R(VW/2-30,108,Math.ceil(60*flip/6),4,'#a64bb0');
+    ctx.strokeStyle='#d36ad6'; ctx.lineWidth=1; ctx.strokeRect(VW/2-30.5,107.5,61,5);
+  }
 }
 function drawBtn(r,label,col){
   ctx.fillStyle='rgba(255,255,255,0.10)'; ctx.fillRect(r.x,r.y,r.w,r.h);
@@ -1216,8 +1252,13 @@ function drawTrapIcon(type,ix,iy){
     R(ix-2,iy-3,4,1,'#e23b3b'); R(ix-1,iy-5,1,4,'#e23b3b');
     R(ix-6,iy+4,3,2,'#2b2b30'); R(ix+3,iy+4,3,2,'#2b2b30');
   } else if(type==='bird'){
-    R(ix-9,iy-3,5,2,'#565d68'); R(ix-6,iy-2,11,6,'#6b7280');
-    R(ix+4,iy-5,5,5,'#5b626e'); R(ix+8,iy-3,2,2,'#e2a02e');
+    R(ix-9,iy-3,5,2,'#565d68'); R(ix-6,iy-2,11,6,'#828b96');
+    R(ix+4,iy-5,5,5,'#777f8b'); R(ix+8,iy-3,2,2,'#e2a02e');
+  } else if(type==='malus'){
+    R(ix-4,iy-8,8,7,'#f0c79e');                              // testa
+    R(ix-5,iy-10,10,3,'#5a3a2a'); R(ix-6,iy-8,2,5,'#5a3a2a'); R(ix+4,iy-8,2,5,'#5a3a2a');
+    R(ix-4,iy-1,8,8,'#7a3a8a');                              // vestito
+    R(ix-2,iy-5,1,1,'#c00'); R(ix+1,iy-5,1,1,'#c00');        // occhi rossi
   }
 }
 function drawMissions(){
@@ -1405,6 +1446,7 @@ function draw(){
     }
     else if(e.type==='cart')drawCart(e);
     else if(e.type==='bird')drawBird(e);
+    else if(e.type==='malus')drawMalus(e);
     else if(e.type==='candy')drawCandy(e);
     else if(e.type.startsWith('pill'))drawPill(e);
   }
