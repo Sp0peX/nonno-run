@@ -112,7 +112,9 @@ let st='menu', tt=0, menuDist=0;
 let dist=0, score=0, speed=170, spawnT=1.5;
 let P=null, ents=[], parts=[];
 let inv=0, turbo=0, shake=0, sparkT=0;
-let mag=0, fly=0, shield=0, flip=0;
+let mag=0, fly=0, shield=0, flip=0, slow=0, x2c=0;
+let weatherSeed=0;
+let bossActive=false, bossT=0, bossNext=500, bossThrowT=0, bossHits=0, bossX=0;
 let deathT=0, deathKind='', deathMsg='', fallX=0, fallRot=0, netHit=null;
 let newHi=false, firstPit=true, firstNet=true, firstCart=true, firstBird=true, firstMalus=true;
 let curBi=0, biomeName='', biomeFlash=0;
@@ -122,7 +124,7 @@ let totM=+(LS.getItem('nonnoRunTotM')||0);
 let topRuns=[]; try{topRuns=JSON.parse(LS.getItem('nonnoRunTop')||'[]');}catch(e){topRuns=[];}
 let shareMsg='', shareMsgT=0;
 let coins=+(LS.getItem('nonnoRunCoins')||0);
-let upg={inv:0,turbo:0,mag:0,fly:0,shield:0,candy:0,start:0,revive:0};
+let upg={inv:0,turbo:0,mag:0,fly:0,shield:0,candy:0,start:0,revive:0,pet:0};
 try{ Object.assign(upg, JSON.parse(LS.getItem('nonnoRunUpg')||'{}')); }catch(e){}
 let eggsBought=new Set();
 try{ (JSON.parse(LS.getItem('nonnoRunEggs')||'[]')||[]).forEach(k=>eggsBought.add(k)); }catch(e){}
@@ -139,10 +141,12 @@ function reset(){
   dist=0; score=0; speed=170; spawnT=1.5;
   P={y:0,vy:0,ground:true,slide:0,buf:0,qSlide:false,run:0};
   ents=[]; parts=[]; inv=0; turbo=0; shake=0;
-  mag=0; fly=0; shield=upg.start?1:0; flip=0;
+  mag=0; fly=0; shield=upg.start?1:0; flip=0; slow=0; x2c=0;
   mult=1; combo=0; runDodge=0; runPow=0; revivesLeft=upg.revive||0; reviveT=0;
   newHi=false; firstPit=true; firstNet=true; firstCart=true; firstBird=true;
   netHit=null; fallRot=0; curBi=0; biomeName=''; biomeFlash=0; firstMalus=true;
+  weatherSeed=Math.floor(Math.random()*4*WEATHER_M*30);   // meteo casuale a inizio run
+  bossActive=false; bossT=0; bossNext=500; bossThrowT=0; bossHits=0;
 }
 const md=(v,m)=>((v%m)+m)%m;
 const hit=(a,b)=>a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
@@ -172,6 +176,8 @@ const GUIDE=[
   ['pillD','DENTIERA','scudo: 1 colpo'],
   ['pillM','MAGNETE','attira caramelle'],
   ['pillF','RAZZO','mini-volo'],
+  ['pillS','RALLENTATORE','tutto piu lento'],
+  ['pillX','DOPPI GETTONI','caramelle x2'],
   ['candy','CARAMELLA','gettoni'],
 ];
 const TRAPS=[
@@ -191,7 +197,7 @@ function settingsRowAt(xy){
 function doReset(){
   ['nonnoRunHi','nonnoRunCoins','nonnoRunUpg','nonnoRunEggs','nonnoRunCustom','nonnoRunTop','nonnoRunGames','nonnoRunTotM','nonnoRunSkin'].forEach(k=>LS.removeItem(k));
   hi=0; coins=0; games=0; totM=0; topRuns=[];
-  upg={inv:0,turbo:0,mag:0,fly:0,shield:0,candy:0,start:0,revive:0};
+  upg={inv:0,turbo:0,mag:0,fly:0,shield:0,candy:0,start:0,revive:0,pet:0};
   eggsBought=new Set(); sel=CATS.map(()=>0); catSel=0; applyCustom();
   setMsg='PROGRESSI AZZERATI'; setMsgT=tt+2.2;
 }
@@ -368,8 +374,8 @@ function spawnCandies(x){
     ents.push({type:'candy', x:x+i*16, y:yy, bob:Math.random()*6});
   }
 }
-const PILL_POOL=['pillG','pillB','pillD','pillM','pillF'];
-const PILL_W=[22,18,14,16,14];
+const PILL_POOL=['pillG','pillB','pillD','pillM','pillF','pillS','pillX'];
+const PILL_W=[20,16,12,14,12,12,12];
 function spawn(sp){
   const x=VW+60, r=Math.random(), m=dist/30;
   // periodo di grazia: verso la fine di turbo/razzo/nipotina niente trappole,
@@ -431,6 +437,7 @@ const CART_MSG=['Travolto dal carrello dei medicinali!','Pillole ovunque, nonno 
   'Quel carrello era proprio lì in mezzo...'];
 const BIRD_MSG=['Beccato in pieno dal piccione!','Maledetti piccioni del parco!',
   'Frenato da una piuma in faccia.'];
+const PROJ_MSG=['Colpito da una provetta!','Il Primario non perdona.','Rispedito in reparto.'];
 function startFall(pit){
   if(revivesLeft>0){ doRevive(); return; }
   st='dying'; deathKind='pit'; deathT=0;
@@ -458,7 +465,7 @@ function gameOver(){
     for(const c of CATS)for(const o of c.list){ const r=c.req(o); if(r>prev&&r<=hi)nuove.push(c.name(o)); }
     if(nuove.length)newSkinMsg=nuove.slice(0,4).join(' + ');
   }
-  const m={pit:PIT_MSG,net:NET_MSG,cart:CART_MSG,bird:BIRD_MSG}[deathKind]||PIT_MSG;
+  const m={pit:PIT_MSG,net:NET_MSG,cart:CART_MSG,bird:BIRD_MSG,proj:PROJ_MSG}[deathKind]||PIT_MSG;
   deathMsg=m[Math.random()*m.length|0];
   // statistiche
   LS.setItem('nonnoRunCoins',coins);
@@ -496,9 +503,13 @@ function collide(){
         if(inv>0){ score+=150; SFX.smash(); shake=4; burst(e.x,GY-16,'#a64bb0',14); }
         else { flip=6; SFX.caught(); shake=5; vib(120); burst(e.x,GY-16,'#a64bb0',16); }
       }
+    } else if(e.type==='proj'){
+      const lo=e.y>GY-24;
+      const r=lo?{x:e.x-6,y:GY-20,w:12,h:20}:{x:e.x-6,y:GY-46,w:12,h:16};
+      if(fly<=0 && hit(pl,r)){ if(prot)smashTrap(e,e.x,e.y,'#cdeaf5'); else { crash('proj'); return; } }
     } else if(e.type==='candy'){
       const r={x:e.x-7,y:e.y-7,w:14,h:14};
-      if(hit(pl,r)){ e.dead=true; coins+=1+upg.candy; score+=25+upg.candy*15; totCandy++;
+      if(hit(pl,r)){ e.dead=true; coins+=(1+upg.candy)*(x2c>0?2:1); score+=25+upg.candy*15; totCandy++;
         for(const m of missions)if(m.t==='candy')m.p++;
         SFX.coin(); vib(8); part(e.x,e.y,0,-40,80,.3,'#ff6f91',2); }
     } else if(e.type.startsWith('pill')){
@@ -510,6 +521,8 @@ function collide(){
         else if(e.type==='pillD'){ shield=Math.min(1+upg.shield, shield+1); SFX.power(); burst(e.x,e.y,'#cfe6e6',16); }
         else if(e.type==='pillM'){ mag=7+upg.mag*2; SFX.power(); burst(e.x,e.y,'#f24b4b',16); }
         else if(e.type==='pillF'){ fly=4+upg.fly*1.5; SFX.power(); burst(e.x,e.y,'#ffb24a',16); }
+        else if(e.type==='pillS'){ slow=5; SFX.power(); burst(e.x,e.y,'#2bd0c8',16); }
+        else if(e.type==='pillX'){ x2c=8; SFX.power(); burst(e.x,e.y,'#f5c542',16); }
         score+=100*(turbo>0?2:1); vib(15);
         runPow++; for(const m of missions)if(m.t==='power')m.p++;
       }
@@ -529,14 +542,26 @@ function update(dt){
   if(st==='menu'||st==='stats'||st==='custom'||st==='shop'||st==='settings'||st==='guide'||st==='missions'){ menuDist+=60*dt; lockFlash=Math.max(0,lockFlash-dt); return; }
 
   if(st==='play'){
-    const sp=speed*(turbo>0?1.55:1);
+    const sp=speed*(turbo>0?1.55:1)*(slow>0?0.55:1);
     dist+=sp*dt;
     speed=170+Math.min(180,dist*0.012);
     score+=dt*sp*0.06*(turbo>0?2:1)*mult;
     inv=Math.max(0,inv-dt); turbo=Math.max(0,turbo-dt);
-    mag=Math.max(0,mag-dt); fly=Math.max(0,fly-dt); flip=Math.max(0,flip-dt);
+    mag=Math.max(0,mag-dt); fly=Math.max(0,fly-dt); flip=Math.max(0,flip-dt); slow=Math.max(0,slow-dt); x2c=Math.max(0,x2c-dt);
     biomeFlash=Math.max(0,biomeFlash-dt);
-    spawnT-=dt; if(spawnT<=0)spawn(sp);
+    // BOSS: il Primario ogni 500 m
+    if(!bossActive && dist/30>=bossNext){ bossActive=true; bossT=9; bossThrowT=1.3; bossHits=0; bossX=VW+40; misMsg='ARRIVA IL PRIMARIO!'; misMsgT=tt+2.4; SFX.caught(); }
+    if(bossActive){
+      bossX += ((VW-46)-bossX)*Math.min(1,dt*3);
+      bossT-=dt;
+      if(bossX<VW-20){
+        bossThrowT-=dt;
+        if(bossThrowT<=0){ const lo=Math.random()<0.5; ents.push({type:'proj', x:bossX-12, y:lo?GY-12:GY-40}); bossThrowT=Math.max(0.5,0.95-Math.min(0.4,dist*0.00002)); SFX.jump(); }
+      }
+      if(bossT<=0){ bossActive=false; bossNext+=500; coins+=50; misMsg='PRIMARIO SCONFITTO! +50'; misMsgT=tt+2.4; SFX.record(); ents=ents.filter(e=>e.type!=='proj'); }
+    } else {
+      spawnT-=dt; if(spawnT<=0)spawn(sp);
+    }
 
     const bi=Math.floor((dist/30)/BIOME_M);
     if(bi!==curBi){ curBi=bi; biomeName=BIOMES[bi%BIOMES.length].nome; biomeFlash=2.4; }
@@ -590,6 +615,14 @@ function update(dt){
         if(dd<85+upg.mag*22){ e.x+=dx/dd*240*dt; e.y+=dy/dd*240*dt; }
       }}
     }
+    // pet: raccoglie le caramelle vicine (le attira verso il nonno)
+    if(upg.pet){
+      const py=GY+P.y-17;
+      for(const e of ents){ if(e.type==='candy'){
+        const dx=PX-e.x, dy=py-e.y, dd=Math.hypot(dx,dy)||1;
+        if(dd<62){ e.x+=dx/dd*210*dt; e.y+=dy/dd*210*dt; }
+      }}
+    }
     collide();
 
     // scintille invincibilità
@@ -605,7 +638,7 @@ function update(dt){
     if(deathKind==='pit'){
       P.vy+=900*dt; P.y+=P.vy*dt; fallRot+=dt*4;
       if(deathT>0.9)gameOver();
-    } else if(deathKind==='cart'||deathKind==='bird'){
+    } else if(deathKind==='cart'||deathKind==='bird'||deathKind==='proj'){
       P.vy+=1500*dt; P.y+=P.vy*dt; if(P.y>0)P.y=0; fallRot-=dt*6;
       if(deathT>1.0)gameOver();
     } else {
@@ -701,6 +734,7 @@ const UPGRADES=[
   {key:'candy', lab:'CARAMELLE +valore',  max:3, cost:l=>20+l*15},
   {key:'start', lab:'PARTI CON SCUDO',    max:1, cost:l=>60},
   {key:'revive',lab:'SECONDA CHANCE +1',  max:2, cost:l=>50+l*45},
+  {key:'pet',   lab:'PET: CANE raccogli-caramelle', max:1, cost:l=>90},
 ];
 const EGGS=[];
 CATS.forEach((c,ci)=>c.list.forEach((o,i)=>{ const r=c.req(o); if(r>0)EGGS.push({ci,i,lab:c.lab+': '+c.name(o),cost:Math.max(10,Math.round(r/100))}); }));
@@ -895,6 +929,8 @@ const PILLCOL={
   pillD:['#dfeaea','#9bbcbc',[210,235,235]],
   pillM:['#f24b4b','#b32f2f',[245,90,90]],
   pillF:['#ffb24a','#c87f1e',[255,180,90]],
+  pillS:['#2bd0c8','#1a8a84',[60,210,200]],
+  pillX:['#f5c542','#c79a1e',[245,200,80]],
 };
 function drawPill(e){
   const x=e.x|0, y=(e.y+Math.sin(tt*3+(e.bob||0))*3)|0;
@@ -1033,6 +1069,7 @@ function drawWorld(d){
 /* ---------------- meteo dinamico ---------------- */
 const WEATHER_M=210; // metri per fase meteo
 function weatherInt(d){
+  if(st==='play'||st==='dying'||st==='dead'||st==='paused') d+=weatherSeed; // fase casuale per la corsa
   const f=(d/30)/WEATHER_M, i=Math.floor(f)%4, j=(i+1)%4;
   let t=f-Math.floor(f); t=t<0.85?0:(t-0.85)/0.15;
   const I=k=>((i===k?1:0)*(1-t)+(j===k?1:0)*t);
@@ -1101,6 +1138,42 @@ function drawBird(e){
   R(x+9,y-4,3,2,'#e2a02e');                                      // becco
   R(x+6,y-6,1,1,'#0a0a0a');                                      // occhio
 }
+function drawDog(cx,by,ph){
+  ctx.save(); ctx.translate(cx|0,by|0);
+  const A=Math.round(Math.sin(ph)*3), bob=-Math.round(Math.abs(Math.cos(ph)));
+  ctx.translate(0,bob);
+  R(-5-A,-4,2,4,'#7a5230'); R(-1+A,-4,2,4,'#7a5230');       // zampe dietro
+  R(2-A,-4,2,4,'#8a5a3b'); R(5+A,-4,2,4,'#8a5a3b');         // zampe davanti
+  R(-6,-10,12,6,'#a06b3a'); R(-6,-10,12,2,'#b07b46');       // corpo
+  R(6,-12,2,3,'#a06b3a'); R(7,-14,2,3,'#a06b3a');           // coda
+  R(-10,-13,6,7,'#a06b3a');                                 // testa
+  R(-11,-15,3,4,'#8a5a3b');                                 // orecchio
+  R(-12,-9,2,2,'#2a2a30');                                  // naso
+  R(-8,-11,1,1,'#1a1a1a');                                  // occhio
+  ctx.restore();
+}
+function drawProj(e){
+  const x=e.x|0, y=e.y|0;
+  R(x-2,y-5,4,11,'rgba(210,235,255,0.85)');  // vetro
+  R(x-2,y,4,6,'#3ecf5a');                     // liquido
+  R(x-2,y-6,4,2,'#cfd6df');                   // tappo
+  R(x-1,y-4,1,4,'#fff');                      // riflesso
+}
+function drawBoss(x){
+  x|=0;
+  R(x-5,GY-9,4,9,'#3a3f4a'); R(x+2,GY-9,4,9,'#3a3f4a');     // gambe
+  R(x-6,GY-2,5,2,'#1d1d22'); R(x+1,GY-2,5,2,'#1d1d22');     // scarpe
+  R(x-8,GY-30,17,21,'#f2f4f7'); R(x-8,GY-30,17,3,'#e2e6ec');// camice
+  R(x-1,GY-30,2,21,'#cfd6df');                              // bottoni
+  ctx.strokeStyle='#444'; ctx.lineWidth=1; ctx.beginPath();
+  ctx.moveTo(x-4,GY-28); ctx.quadraticCurveTo(x,GY-17,x+4,GY-28); ctx.stroke(); // stetoscopio
+  R(x+3,GY-20,2,2,'#8a8a8a');
+  R(x-4,GY-40,10,10,'#eec39a');                             // testa
+  R(x-5,GY-42,12,3,'#a8a8a8'); R(x-6,GY-40,2,5,'#a8a8a8'); R(x+5,GY-40,2,5,'#a8a8a8'); // capelli grigi
+  R(x-3,GY-37,3,1,'#333'); R(x+1,GY-37,3,1,'#333');         // sopracciglia arrabbiate
+  R(x-2,GY-35,2,1,'#333'); R(x+2,GY-35,2,1,'#333');         // occhi
+  R(x-1,GY-31,3,1,'#7a4a4a');                               // bocca
+}
 function drawMalus(e){
   const x=e.x|0;
   // aura viola "cattiva"
@@ -1153,6 +1226,8 @@ function drawHUD(){
   if(turbo>0)bars.push(['pillG',turbo/(8+upg.turbo*2),'#3ecf5a']);
   if(mag>0)  bars.push(['pillM',mag/(7+upg.mag*2),'#f24b4b']);
   if(fly>0)  bars.push(['pillF',fly/(4+upg.fly*1.5),'#ffb24a']);
+  if(slow>0) bars.push(['pillS',slow/5,'#2bd0c8']);
+  if(x2c>0)  bars.push(['pillX',x2c/8,'#f5c542']);
   const W=62, total=bars.length*W + (shield>0?22:0);
   let bx=VW/2-total/2+8;
   for(const b of bars){
@@ -1252,10 +1327,10 @@ function drawGuide(){
   // colonna POWER-UP
   txt('POWER-UP',128,44,11,'#9fd0ff','center');
   for(let i=0;i<GUIDE.length;i++){
-    const g=GUIDE[i], y=62+i*25;
+    const g=GUIDE[i], y=60+i*22;
     if(g[0]==='candy')drawCandy({x:32,y:y,bob:0}); else drawPill({x:32,y:y,type:g[0],bob:0});
     txt(g[1],52,y-2,10,'#fff','left');
-    txt(g[2],52,y+9,8,'#bdbdbd','left');
+    txt(g[2],52,y+8,8,'#bdbdbd','left');
   }
   // colonna TRAPPOLE
   txt('TRAPPOLE',358,44,11,'#ff8a7a','center');
@@ -1380,8 +1455,8 @@ function drawMenu(){
 }
 function drawDead(){
   ctx.fillStyle='rgba(20,12,30,0.62)'; ctx.fillRect(0,0,VW,VH);
-  txt(deathKind==='pit'?'SEI CADUTO NEL FOSSO!':'CATTURATO COL RETINO!',
-      VW/2,86,20,'#ff6b5e','center');
+  txt({pit:'SEI CADUTO NEL FOSSO!',net:'CATTURATO COL RETINO!',cart:'SCONTRO COL CARRELLO!',bird:'BECCATO DAL PICCIONE!',proj:'COLPITO DAL PRIMARIO!'}[deathKind]||'CATTURATO!',
+      VW/2,86,18,'#ff6b5e','center');
   txt(deathMsg,VW/2,108,11,'#fff','center');
   txt('PUNTI  '+Math.floor(score),VW/2,144,18,'#ffe066','center');
   txt(Math.floor(dist/30)+' metri di libertà',VW/2,162,10,'#fff','center');
@@ -1416,11 +1491,15 @@ function draw(){
     else if(e.type==='cart')drawCart(e);
     else if(e.type==='bird')drawBird(e);
     else if(e.type==='malus')drawMalus(e);
+    else if(e.type==='proj')drawProj(e);
     else if(e.type==='candy')drawCandy(e);
     else if(e.type.startsWith('pill'))drawPill(e);
   }
+  // boss
+  if(bossActive && (st==='play'||st==='paused'||st==='dying')) drawBoss(bossX);
   // nonno
   if(st==='play'||st==='paused'){
+    if(upg.pet) drawDog(PX-26, GY, P.run*0.9);   // cagnolino
     if(inv>0 && !(inv<2.5 && Math.floor(tt*8)%2===0)){
       const g=ctx.createRadialGradient(PX,GY+P.y-17,4,PX,GY+P.y-17,30);
       g.addColorStop(0,'rgba(120,170,255,0.45)'); g.addColorStop(1,'rgba(120,170,255,0)');
@@ -1436,7 +1515,7 @@ function draw(){
     }
   } else if(st==='dying'&&deathKind==='pit'){
     drawGrandpa(fallX,GY+P.y,'jump',0,fallRot);
-  } else if(st==='dying'&&(deathKind==='cart'||deathKind==='bird')){
+  } else if(st==='dying'&&(deathKind==='cart'||deathKind==='bird'||deathKind==='proj')){
     drawGrandpa(PX,GY+P.y,'jump',0,fallRot);
   } else if(st==='dead'){
     // niente nonno: è caduto o catturato (resta la scena)
