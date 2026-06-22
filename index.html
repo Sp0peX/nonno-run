@@ -660,6 +660,11 @@ const SKINS=[
   {nome:'GIALLO',  pj:'#f2dc8a', pjd:'#c9a23a', req:3000},
   {nome:'VIOLA',   pj:'#c3a4e8', pjd:'#8a5fc2', req:6000},
   {nome:'EVASO',   pj:'#f7f7f7', pjd:'#2a2a30', req:10000},
+  {nome:'HOBBIT',      pj:'#7a9b4e', pjd:'#5a3a2a', req:2000},
+  {nome:'SAIO JEDI',   pj:'#a98a5e', pjd:'#6f5836', req:4500},
+  {nome:'GRIGIO MAGO', pj:'#9aa0a8', pjd:'#6b727c', req:8000},
+  {nome:'MANTELLO EROE',pj:'#e23b4b',pjd:'#2f5cc4', req:9000},
+  {nome:'BIANCO MAGO', pj:'#f4f4f4', pjd:'#c8ccd2', req:14000},
 ];
 const SKINTONES=[
   {n:'CHIARA',   c:'#eec39a', d:'#d9a066'},
@@ -667,7 +672,9 @@ const SKINTONES=[
   {n:'AMBRATA',  c:'#c2895a', d:'#9c6b40'},
   {n:'SCURA',    c:'#9a6741', d:'#7a4f30'},
   {n:'ZOMBIE',   c:'#9fb38a', d:'#76906b', egg:2500},
+  {n:'ORCO',     c:'#7a8a5a', d:'#566044', egg:5000},
   {n:'HULK',     c:'#7bbf5a', d:'#4f9e3e', egg:7000},
+  {n:'GOLEM',    c:'#9a9a9a', d:'#6f6f6f', egg:9000},
 ];
 const HAIRCOLS=[
   {n:'BIANCHI', c:'#f2f2f2'},
@@ -677,9 +684,12 @@ const HAIRCOLS=[
   {n:'ROSSI',   c:'#c0512e'},
   {n:'BLU PUNK',c:'#4d84f7', egg:1000},
   {n:'ALIENO',  c:'#4fcf6a', egg:4000},
+  {n:'VIOLA MAGO', c:'#9b6ad6', egg:5500},
+  {n:'ARGENTO ELFO',c:'#dde2ea', egg:6500},
 ];
-const HAIRSTYLES=[{n:'CLASSICI'},{n:'PELATO'},{n:'DOC',egg:2000},{n:'CRESTA',egg:3500},{n:'CODINO'}];
-const PJPATTERNS=[{n:'A RIGHE'},{n:'TINTA UNITA'},{n:'A POIS'}];
+const HAIRSTYLES=[{n:'CLASSICI'},{n:'PELATO'},{n:'DOC',egg:2000},{n:'CRESTA',egg:3500},{n:'CODINO'},
+  {n:'MAGO',egg:6000},{n:'ELFO',egg:8000}];
+const PJPATTERNS=[{n:'A RIGHE'},{n:'TINTA UNITA'},{n:'A POIS'},{n:'STELLE',egg:3000}];
 const CANECOLS=[
   {n:'LEGNO',  c:'#a06b3a'},
   {n:'NERO',   c:'#2b2b30'},
@@ -687,7 +697,8 @@ const CANECOLS=[
   {n:'ROSSO',  c:'#c0433f'},
   {n:'ORO',    c:'#e8b84a', egg:3000},
 ];
-const CANETYPES=[{n:'BASTONE'},{n:'ELEGANTE'},{n:'OMBRELLO'},{n:'MAZZA GOLF',egg:1500},{n:'SPADA LASER',egg:5000}];
+const CANETYPES=[{n:'BASTONE'},{n:'ELEGANTE'},{n:'OMBRELLO'},{n:'MAZZA GOLF',egg:1500},{n:'SPADA LASER',egg:5000},
+  {n:'BASTONE MAGO',egg:6000},{n:'BACCHETTA',egg:4000},{n:'MARTELLO',egg:7000},{n:'TRIDENTE',egg:8500}];
 const CATS=[
   {lab:'PELLE',        list:SKINTONES,  name:o=>o.n,    req:o=>o.egg||0},
   {lab:'CAPELLI',      list:HAIRCOLS,   name:o=>o.n,    req:o=>o.egg||0},
@@ -810,6 +821,12 @@ function drawHair(style,col){
   } else if(style===4){ // CODINO
     R(-5,-37,13,4,col); R(-5,-33,2,6,col); R(2,-27,5,2,col);
     R(-10,-35,5,3,col); R(-11,-32,4,6,col);
+  } else if(style===5){ // MAGO — capelli lunghi + barba
+    R(-6,-37,14,4,col); R(-6,-33,3,11,col); R(7,-33,2,9,col);  // chioma lunga
+    R(-4,-26,11,4,col); R(-3,-22,9,4,col); R(-1,-18,6,4,col); R(0,-14,4,3,col); // barba a punta
+  } else if(style===6){ // ELFO — lunga chioma liscia
+    R(-5,-38,13,4,col); R(-6,-34,3,18,col); R(6,-36,2,14,col);
+    R(-5,-33,2,6,col);
   } else { // CLASSICI
     R(-5,-37,13,4,col); R(-5,-33,2,6,col); R(2,-27,5,2,col);
   }
@@ -818,6 +835,28 @@ function drawCaneAt(type,col,gx,gy,len){
   if(type===4){ // SPADA LASER (lama verso l'alto)
     ctx.fillStyle='rgba(120,220,255,0.35)'; ctx.fillRect(gx-2,gy-len-2,6,len+6);
     R(gx,gy-len-2,2,len+4,'#cdf3ff'); R(gx-1,gy-2,4,5,'#5b626e');
+    return;
+  }
+  if(type===5){ // BASTONE MAGO (Gandalf): asta lunga + cristallo luminoso
+    R(gx,gy-len-7,2,len+9,col);
+    ctx.fillStyle='rgba(120,220,255,0.4)'; ctx.beginPath(); ctx.arc(gx+1,gy-len-9,5,0,Math.PI*2); ctx.fill();
+    R(gx-1,gy-len-11,4,4,'#bdf0ff'); R(gx,gy-len-10,1,1,'#fff');
+    return;
+  }
+  if(type===6){ // BACCHETTA magica
+    R(gx,gy-len,2,len,'#3a2a1a'); R(gx-1,gy-len-2,4,2,'#5a4030');
+    R(gx-3,gy-len-5,2,2,'#fff7c0'); R(gx+3,gy-len-7,1,1,'#fff7c0'); R(gx,gy-len-9,1,1,'#fff');
+    return;
+  }
+  if(type===7){ // MARTELLO (Mjolnir)
+    R(gx,gy,2,len,'#6b5436');
+    R(gx-5,gy-6,12,8,'#9aa0a8'); R(gx-5,gy-6,12,2,'#c4c9cf'); R(gx-5,gy,12,2,'#6f757c');
+    return;
+  }
+  if(type===8){ // TRIDENTE
+    R(gx,gy-len-2,2,len+4,'#c9a24a');
+    R(gx-4,gy-len-8,2,6,'#e8c45a'); R(gx,gy-len-10,2,8,'#e8c45a'); R(gx+4,gy-len-8,2,6,'#e8c45a');
+    R(gx-4,gy-len-2,10,2,'#e8c45a');
     return;
   }
   R(gx,gy,2,len,col); // shaft
@@ -863,6 +902,10 @@ function drawGrandpa(cx,by,pose,ph,rot){
   if(CC.pjPat===0){ R(-5,-25,2,13,CC.pjd); R(-1,-25,2,13,CC.pjd); R(3,-25,2,13,CC.pjd); }
   else if(CC.pjPat===2){ R(-5,-23,2,2,CC.pjd); R(0,-21,2,2,CC.pjd); R(4,-24,2,2,CC.pjd);
                          R(-3,-18,2,2,CC.pjd); R(2,-16,2,2,CC.pjd); R(-6,-19,2,2,CC.pjd); }
+  else if(CC.pjPat===3){ // STELLE (mago)
+    const star=(sx,sy)=>{R(sx,sy-1,1,3,'#ffe066'); R(sx-1,sy,3,1,'#ffe066');};
+    star(-3,-22); star(3,-19); star(-5,-16); star(1,-24); star(5,-23);
+  }
   // testa
   R(-4,-35,11,10,CC.skin);
   drawHair(CC.hairStyle,CC.hair);
