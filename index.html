@@ -46,11 +46,20 @@ ctx.imageSmoothingEnabled=false;
 
 let isPortrait=false;
 function fit(){
-  const s=Math.min(innerWidth/VW, innerHeight/VH);
+  const w=innerWidth||document.documentElement.clientWidth||0,
+        h=innerHeight||document.documentElement.clientHeight||0;
+  if(w<2||h<2) return;               // dimensioni non ancora pronte: riprovo dopo
+  const s=Math.min(w/VW, h/VH);
   cv.style.width=(VW*s)+'px'; cv.style.height=(VH*s)+'px';
-  isPortrait = innerHeight>innerWidth;
+  isPortrait = h>w;
 }
-addEventListener('resize',fit); fit();
+addEventListener('resize',fit);
+addEventListener('orientationchange',()=>{ fit(); setTimeout(fit,150); setTimeout(fit,400); });
+addEventListener('load',()=>{ fit(); setTimeout(fit,150); });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden)fit(); });
+fit();
+// finché lo schermo non riporta dimensioni valide, riprovo (evita schermo nero al primo avvio)
+(function ensureFit(t){ fit(); if((parseFloat(cv.style.width)||0)<2 && t<40) setTimeout(()=>ensureFit(t+1),100); })(0);
 
 /* ---------------- audio ---------------- */
 let AC=null;
@@ -1597,8 +1606,10 @@ function draw(){
   if(st==='dead'){ drawHUD(); drawDead(); }
 }
 
-let last=performance.now();
+let last=performance.now(), _lw=0, _lh=0;
 function frame(now){
+  // rete di sicurezza: se lo schermo cambia/diventa valido, ridimensiona il canvas
+  if(innerWidth!==_lw || innerHeight!==_lh){ _lw=innerWidth; _lh=innerHeight; fit(); }
   const dt=Math.min(0.033,(now-last)/1000); last=now;
   update(dt); draw();
   requestAnimationFrame(frame);
