@@ -38,6 +38,185 @@ const LS=(function(){
     removeItem:function(k){ delete m[k]; } }; }
 })();
 /* ============================================================
+   LOCALIZZAZIONE — IT / EN / ES / FR / DE / PT
+   STR: testo interfaccia (array nell'ordine di LANGS).
+   NAMES: nomi opzioni/scenari (array nell'ordine EN..PT, IT = chiave).
+   ============================================================ */
+const LANGS=['it','en','es','fr','de','pt'];
+let lang=LS.getItem('nonnoRunLang');
+if(!lang){ const n=(navigator.language||'en').slice(0,2).toLowerCase(); lang=LANGS.indexOf(n)>=0?n:'en'; }
+let li=Math.max(0,LANGS.indexOf(lang));
+function setLang(l){ const k=LANGS.indexOf(l); if(k<0)return; lang=l; li=k; LS.setItem('nonnoRunLang',l); }
+function cycleLang(dir){ li=(li+(dir||1)+LANGS.length)%LANGS.length; setLang(LANGS[li]); }
+const LANGNAME={it:'ITALIANO',en:'ENGLISH',es:'ESPAÑOL',fr:'FRANÇAIS',de:'DEUTSCH',pt:'PORTUGUÊS'};
+const STR={
+  tagline:["~ FUGA DAL RICOVERO ~","~ ESCAPE THE NURSING HOME ~","~ FUGA DEL ASILO ~","~ ÉVASION DE LA MAISON ~","~ FLUCHT AUS DEM HEIM ~","~ FUGA DO LAR ~"],
+  tap_to_run:["— TOCCA PER SCAPPARE —","— TAP TO ESCAPE —","— TOCA PARA ESCAPAR —","— TOUCHE POUR FUIR —","— TIPPEN ZUM FLIEHEN —","— TOQUE PARA FUGIR —"],
+  rotate:["Ruota il telefono per giocare meglio","Rotate your phone to play better","Gira el teléfono para jugar mejor","Tournez le téléphone pour mieux jouer","Dreh dein Handy zum Spielen","Gire o telefone para jogar melhor"],
+  customize:["PERSONALIZZA","CUSTOMIZE","PERSONALIZAR","PERSONNALISER","ANPASSEN","PERSONALIZAR"],
+  shop:["NEGOZIO","SHOP","TIENDA","BOUTIQUE","SHOP","LOJA"],
+  missions:["MISSIONI","MISSIONS","MISIONES","MISSIONS","MISSIONEN","MISSÕES"],
+  record:["RECORD","BEST","RÉCORD","RECORD","REKORD","RECORDE"],
+  coins:["GETTONI","COINS","FICHAS","JETONS","MÜNZEN","FICHAS"],
+  menu_btn:["MENU","MENU","MENÚ","MENU","MENÜ","MENU"],
+  done:["FATTO","DONE","HECHO","OK","FERTIG","FEITO"],
+  back:["INDIETRO","BACK","ATRÁS","RETOUR","ZURÜCK","VOLTAR"],
+  retry:["RIPROVA","RETRY","REINTENTAR","RÉESSAYER","NOCHMAL","TENTAR"],
+  share:["CONDIVIDI","SHARE","COMPARTIR","PARTAGER","TEILEN","PARTILHAR"],
+  resume:["RIPRENDI","RESUME","SEGUIR","REPRENDRE","WEITER","CONTINUAR"],
+  pause:["PAUSA","PAUSE","PAUSA","PAUSE","PAUSE","PAUSA"],
+  audio_on:["AUDIO: ON","AUDIO: ON","AUDIO: ON","AUDIO: ON","TON: AN","ÁUDIO: ON"],
+  audio_off:["AUDIO: OFF","AUDIO: OFF","AUDIO: OFF","AUDIO: OFF","TON: AUS","ÁUDIO: OFF"],
+  row_jump:["▲ TAP / SU — salta il fosso","▲ TAP / UP — jump the pit","▲ TOCA / ↑ — salta el foso","▲ TAP / HAUT — saute le trou","▲ TIPP / HOCH — übers Loch","▲ TOQUE / ↑ — pule o buraco"],
+  row_slide:["▼ SWIPE GIÙ — scivola sotto il retino","▼ SWIPE DOWN — slide under the net","▼ DESLIZA ↓ — pasa bajo la red","▼ GLISSE BAS — sous le filet","▼ WISCH RUNTER — unters Netz","▼ ARRASTE ↓ — sob a rede"],
+  row_pills:["raccogli le PILLOLE per i poteri","grab PILLS for powers","coge PÍLDORAS para poderes","prends les PILULES pour des pouvoirs","sammle PILLEN für Kräfte","pegue PÍLULAS para poderes"],
+  row_guide:["tocca  ?  in alto per la guida","tap  ?  above for the full guide","toca  ?  arriba para la guía","touche  ?  en haut pour le guide","tippe  ?  oben für die Anleitung","toque  ?  acima para o guia"],
+  settings:["IMPOSTAZIONI","SETTINGS","AJUSTES","RÉGLAGES","EINSTELLUNGEN","AJUSTES"],
+  music:["MUSICA","MUSIC","MÚSICA","MUSIQUE","MUSIK","MÚSICA"],
+  sfx:["EFFETTI SONORI","SOUND FX","EFECTOS","EFFETS SONORES","SOUNDEFFEKTE","EFEITOS"],
+  vibe:["VIBRAZIONE","VIBRATION","VIBRACIÓN","VIBRATION","VIBRATION","VIBRAÇÃO"],
+  language:["LINGUA","LANGUAGE","IDIOMA","LANGUE","SPRACHE","IDIOMA"],
+  reset:["AZZERA PROGRESSI","RESET PROGRESS","BORRAR DATOS","TOUT EFFACER","ALLES LÖSCHEN","APAGAR DADOS"],
+  reset_sure:["SICURO? TOCCA ANCORA","SURE? TAP AGAIN","¿SEGURO? OTRA VEZ","SÛR ? RE-TOUCHE","SICHER? NOCHMAL","CERTEZA? DE NOVO"],
+  reset_done:["PROGRESSI AZZERATI","PROGRESS RESET","DATOS BORRADOS","TOUT EFFACÉ","ZURÜCKGESETZT","DADOS APAGADOS"],
+  mis_title:["MISSIONI & OBIETTIVI","MISSIONS & GOALS","MISIONES Y LOGROS","MISSIONS & DÉFIS","MISSIONEN & ZIELE","MISSÕES & METAS"],
+  mis_rotating:["MISSIONI  (a rotazione)","MISSIONS  (rotating)","MISIONES  (rotativas)","MISSIONS  (tournantes)","MISSIONEN  (rotierend)","MISSÕES  (rotativas)"],
+  goals:["OBIETTIVI","GOALS","LOGROS","DÉFIS","ZIELE","METAS"],
+  mission_done:["MISSIONE FATTA","MISSION DONE","MISIÓN HECHA","MISSION FAITE","MISSION GESCHAFFT","MISSÃO FEITA"],
+  ach_toast:["OBIETTIVO!","GOAL!","¡LOGRO!","DÉFI !","ZIEL!","META!"],
+  m_dist:["Corri {n}m in una corsa","Run {n}m in one go","Corre {n}m de una vez","Cours {n}m d’un coup","Lauf {n}m am Stück","Corra {n}m de uma vez"],
+  m_candy:["Raccogli {n} caramelle","Collect {n} candies","Recoge {n} dulces","Ramasse {n} bonbons","Sammle {n} Bonbons","Colete {n} doces"],
+  m_dodge:["Schiva {n} trappole","Dodge {n} traps","Esquiva {n} trampas","Évite {n} pièges","Weiche {n} Fallen aus","Desvie {n} armadilhas"],
+  m_power:["Usa {n} power-up","Use {n} power-ups","Usa {n} power-ups","Utilise {n} bonus","Nutze {n} Power-ups","Use {n} power-ups"],
+  m_score:["Fai {n} punti in una corsa","Score {n} points in one run","Haz {n} puntos","Fais {n} points","Mach {n} Punkte","Faça {n} pontos"],
+  ach_dist:["{n} m totali","{n} m total","{n} m totales","{n} m au total","{n} m gesamt","{n} m no total"],
+  ach_candy:["{n} caramelle totali","{n} candies total","{n} dulces totales","{n} bonbons au total","{n} Bonbons gesamt","{n} doces no total"],
+  ach_games:["{n} partite giocate","{n} games played","{n} partidas jugadas","{n} parties jouées","{n} Spiele gespielt","{n} jogos jogados"],
+  ach_record:["record {n} punti","{n} points best","récord {n} puntos","record {n} points","{n} Punkte Rekord","recorde {n} pontos"],
+  guide:["GUIDA","GUIDE","GUÍA","GUIDE","ANLEITUNG","GUIA"],
+  powerups:["POWER-UP","POWER-UPS","POWER-UPS","BONUS","POWER-UPS","POWER-UPS"],
+  traps:["TRAPPOLE","TRAPS","TRAMPAS","PIÈGES","FALLEN","ARMADILHAS"],
+  jump_word:["SALTA","JUMP","SALTA","SAUTE","SPRING","PULE"],
+  slide_word:["SCIVOLA","SLIDE","DESLIZA","GLISSE","RUTSCH","DESLIZE"],
+  g_pillB_n:["INVINCIBILE","INVINCIBLE","INVENCIBLE","INVINCIBLE","UNVERWUNDBAR","INVENCÍVEL"],
+  g_pillB_d:["immune a tutto 10s","immune to all 10s","inmune a todo 10s","immunisé 10s","10s immun","imune a tudo 10s"],
+  g_pillG_n:["TURBO","TURBO","TURBO","TURBO","TURBO","TURBO"],
+  g_pillG_d:["veloce, punti x2","fast, x2 points","rápido, x2 puntos","rapide, points x2","schnell, x2 Punkte","rápido, x2 pontos"],
+  g_pillD_n:["DENTIERA","DENTURES","DENTADURA","DENTIER","GEBISS","DENTADURA"],
+  g_pillD_d:["scudo: 1 colpo","shield: 1 hit","escudo: 1 golpe","bouclier: 1 coup","Schild: 1 Treffer","escudo: 1 golpe"],
+  g_pillM_n:["MAGNETE","MAGNET","IMÁN","AIMANT","MAGNET","ÍMÃ"],
+  g_pillM_d:["attira caramelle","pulls candies","atrae dulces","attire bonbons","zieht Bonbons","atrai doces"],
+  g_pillF_n:["RAZZO","ROCKET","COHETE","FUSÉE","RAKETE","FOGUETE"],
+  g_pillF_d:["mini-volo","mini-flight","mini-vuelo","mini-vol","Mini-Flug","mini-voo"],
+  g_pillS_n:["RALLENTATORE","SLOW-MO","CÁMARA LENTA","RALENTI","ZEITLUPE","CÂMARA LENTA"],
+  g_pillS_d:["tutto piu lento","everything slower","todo más lento","tout ralenti","alles langsamer","tudo mais lento"],
+  g_pillX_n:["DOPPI GETTONI","DOUBLE COINS","FICHAS X2","JETONS X2","DOPPELMÜNZEN","FICHAS X2"],
+  g_pillX_d:["caramelle x2","candies x2","dulces x2","bonbons x2","Bonbons x2","doces x2"],
+  g_candy_n:["CARAMELLA","CANDY","DULCE","BONBON","BONBON","DOCE"],
+  g_candy_d:["gettoni","coins","fichas","jetons","Münzen","fichas"],
+  t_pit:["FOSSO","PIT","FOSO","TROU","LOCH","BURACO"],
+  t_net:["RETINO","NET","RED","FILET","NETZ","REDE"],
+  t_cart:["CARRELLO","CART","CARRITO","CHARIOT","WAGEN","CARRINHO"],
+  t_bird:["PICCIONE","PIGEON","PALOMA","PIGEON","TAUBE","POMBO"],
+  t_malus:["NIPOTE AVIDA","GREEDY NIECE","NIETA AVARA","NIÈCE AVIDE","GIERIGE NICHTE","NETA GULOSA"],
+  cat_skin:["PELLE","SKIN","PIEL","PEAU","HAUT","PELE"],
+  cat_hair:["CAPELLI","HAIR","PELO","CHEVEUX","HAARE","CABELO"],
+  cat_style:["ACCONCIATURA","HAIRSTYLE","PEINADO","COIFFURE","FRISUR","PENTEADO"],
+  cat_pajama:["PIGIAMA","PAJAMAS","PIJAMA","PYJAMA","PYJAMA","PIJAMA"],
+  cat_pattern:["FANTASIA","PATTERN","ESTAMPADO","MOTIF","MUSTER","PADRÃO"],
+  cat_cane:["BASTONE","CANE","BASTÓN","CANNE","STOCK","BENGALA"],
+  cat_canetype:["TIPO BASTONE","CANE TYPE","TIPO BASTÓN","TYPE CANNE","STOCK-TYP","TIPO BENGALA"],
+  stats:["STATISTICHE","STATS","ESTADÍSTICAS","STATS","STATISTIK","ESTATÍSTICAS"],
+  games_played:["Partite giocate:","Games played:","Partidas:","Parties jouées:","Spiele:","Jogos:"],
+  total_m:["Metri totali:","Total meters:","Metros totales:","Mètres totaux:","Meter gesamt:","Metros totais:"],
+  top5:["— TOP 5 FUGHE —","— TOP 5 ESCAPES —","— TOP 5 FUGAS —","— TOP 5 ÉVASIONS —","— TOP 5 FLUCHTEN —","— TOP 5 FUGAS —"],
+  no_runs:["nessuna fuga ancora...","no escapes yet...","aún sin fugas...","aucune évasion...","noch keine Flucht...","nenhuma fuga ainda..."],
+  pts:["pt","pt","pt","pt","Pkt","pt"],
+  preview:["anteprima","preview","vista","aperçu","Vorschau","prévia"],
+  rec_prefix:["rec","best","réc","rec","Rek","rec"],
+  upgrades:["POTENZIAMENTI","UPGRADES","MEJORAS","AMÉLIORATIONS","UPGRADES","MELHORIAS"],
+  eggs:["EASTER EGG","EASTER EGGS","EASTER EGGS","EASTER EGGS","EASTER EGGS","EASTER EGGS"],
+  lv:["Lv","Lv","Nv","Niv","Stf","Nv"],
+  maxed:["MAX","MAX","MÁX","MAX","MAX","MÁX"],
+  owned:["OK","OWNED","TIENES","ACQUIS","HAST","TENS"],
+  msg_max:["GIA AL MASSIMO","ALREADY MAXED","YA AL MÁXIMO","DÉJÀ AU MAX","SCHON MAX","JÁ NO MÁX"],
+  msg_nocoins:["GETTONI INSUFFICIENTI","NOT ENOUGH COINS","FICHAS INSUFICIENTES","PAS ASSEZ DE JETONS","ZU WENIG MÜNZEN","FICHAS INSUFICIENTES"],
+  msg_upgraded:["POTENZIATO!","UPGRADED!","¡MEJORADO!","AMÉLIORÉ !","VERBESSERT!","MELHORADO!"],
+  msg_owned:["GIA SBLOCCATO","ALREADY OWNED","YA DESBLOQUEADO","DÉJÀ DÉBLOQUÉ","SCHON FREI","JÁ DESBLOQUEADO"],
+  msg_unlocked:["SBLOCCATO!","UNLOCKED!","¡DESBLOQUEADO!","DÉBLOQUÉ !","FREIGESCHALTET!","DESBLOQUEADO!"],
+  u_inv:["INVINCIBILITA +2s","INVINCIBILITY +2s","INVENCIBLE +2s","INVINCIBLE +2s","UNVERWUNDBAR +2s","INVENCÍVEL +2s"],
+  u_turbo:["TURBO +2s","TURBO +2s","TURBO +2s","TURBO +2s","TURBO +2s","TURBO +2s"],
+  u_mag:["MAGNETE +raggio","MAGNET +range","IMÁN +radio","AIMANT +portée","MAGNET +Reichw.","ÍMÃ +alcance"],
+  u_fly:["RAZZO +1.5s","ROCKET +1.5s","COHETE +1.5s","FUSÉE +1.5s","RAKETE +1.5s","FOGUETE +1.5s"],
+  u_shield:["DENTIERA +1 carica","DENTURES +1 charge","DENTADURA +1","DENTIER +1","GEBISS +1","DENTADURA +1"],
+  u_candy:["CARAMELLE +valore","CANDY +value","DULCE +valor","BONBON +valeur","BONBON +Wert","DOCE +valor"],
+  u_start:["PARTI CON SCUDO","START WITH SHIELD","EMPIEZA CON ESCUDO","DÉPART AVEC BOUCLIER","START MIT SCHILD","COMEÇA COM ESCUDO"],
+  u_revive:["SECONDA CHANCE +1","SECOND CHANCE +1","SEGUNDA OPORT. +1","2E CHANCE +1","ZWEITE CHANCE +1","SEGUNDA CHANCE +1"],
+  u_pet:["PET: CANE raccogli-caramelle","PET: candy-fetching DOG","MASCOTA: PERRO recoge-dulces","ANIMAL: CHIEN ramasse-bonbons","HAUSTIER: HUND sammelt","PET: CÃO pega-doces"],
+  combo:["COMBO","COMBO","COMBO","COMBO","COMBO","COMBO"],
+  chance:["CHANCE","CHANCE","CHANCE","CHANCE","CHANCE","CHANCE"],
+  second_chance:["SECONDA CHANCE!","SECOND CHANCE!","¡SEGUNDA!","2E CHANCE !","ZWEITE CHANCE!","SEGUNDA CHANCE!"],
+  inverted:["COMANDI INVERTITI!","CONTROLS INVERTED!","¡MANDOS AL REVÉS!","COMMANDES INVERSÉES !","STEUERUNG VERDREHT!","CONTROLES INVERTIDOS!"],
+  scenario:["SCENARIO:","SCENERY:","ESCENARIO:","DÉCOR:","SZENERIE:","CENÁRIO:"],
+  death_pit:["SEI CADUTO NEL FOSSO!","YOU FELL IN THE PIT!","¡CAÍSTE AL FOSO!","TOMBÉ DANS LE TROU !","INS LOCH GEFALLEN!","CAÍSTE NO BURACO!"],
+  death_net:["CATTURATO COL RETINO!","CAUGHT IN THE NET!","¡ATRAPADO CON LA RED!","PRIS AU FILET !","IM NETZ GEFANGEN!","PEGO NA REDE!"],
+  death_cart:["SCONTRO COL CARRELLO!","HIT BY THE CART!","¡CHOQUE CON EL CARRITO!","PERCUTÉ PAR LE CHARIOT !","VOM WAGEN ERWISCHT!","BATEU NO CARRINHO!"],
+  death_bird:["BECCATO DAL PICCIONE!","PECKED BY THE PIGEON!","¡PICOTEADO POR LA PALOMA!","PIQUÉ PAR LE PIGEON !","VON DER TAUBE GEPICKT!","BICADO PELO POMBO!"],
+  death_proj:["COLPITO DAL PRIMARIO!","HIT BY THE CHIEF DOC!","¡GOLPEADO POR EL JEFE!","TOUCHÉ PAR LE CHEF !","VOM CHEFARZT GETROFFEN!","ATINGIDO PELO CHEFE!"],
+  death_generic:["CATTURATO!","CAUGHT!","¡ATRAPADO!","ATTRAPÉ !","GESCHNAPPT!","PEGO!"],
+  points:["PUNTI","POINTS","PUNTOS","POINTS","PUNKTE","PONTOS"],
+  meters_freedom:["{n} metri di libertà","{n} meters of freedom","{n} metros de libertad","{n} mètres de liberté","{n} Meter Freiheit","{n} metros de liberdade"],
+  new_record:["★ NUOVO RECORD! ★","★ NEW BEST! ★","★ ¡NUEVO RÉCORD! ★","★ NOUVEAU RECORD ! ★","★ NEUER REKORD! ★","★ NOVO RECORDE! ★"],
+  pajama_unlocked:["PIGIAMA {n} SBLOCCATO!","{n} PAJAMAS UNLOCKED!","¡PIJAMA {n} DESBLOQUEADO!","PYJAMA {n} DÉBLOQUÉ !","PYJAMA {n} FREI!","PIJAMA {n} DESBLOQUEADO!"],
+  copied:["COPIATO NEGLI APPUNTI!","COPIED TO CLIPBOARD!","¡COPIADO!","COPIÉ !","KOPIERT!","COPIADO!"],
+  share_unavail:["CONDIVISIONE NON DISPONIBILE","SHARING UNAVAILABLE","COMPARTIR NO DISPONIBLE","PARTAGE INDISPONIBLE","TEILEN NICHT MÖGLICH","PARTILHA INDISPONÍVEL"],
+  share_text:["Sono scappato dalla casa di riposo per {m} m ({s} punti) in Nonno Run! 🏃","I escaped the nursing home for {m} m ({s} pts) in Nonno Run! 🏃","¡Escapé del asilo {m} m ({s} pts) en Nonno Run! 🏃","Évasion de {m} m ({s} pts) dans Nonno Run ! 🏃","Ich floh {m} m ({s} Pkt) in Nonno Run! 🏃","Fugi do lar por {m} m ({s} pts) no Nonno Run! 🏃"],
+};
+const MSGS={
+  pit:[["La fisioterapia ti aspetta...","Ti ripescano col montacarichi.","Il fosso ha vinto, il nonno no.","Domani si riprova, Gino!"],
+    ["Physio is waiting for you...","Hoisted out with the cargo lift.","The pit won, grandpa didn't.","Try again tomorrow, Gino!"],
+    ["La fisio te espera...","Te sacan con el montacargas.","Ganó el foso, no el abuelo.","¡Mañana otra vez, Gino!"],
+    ["La kiné t'attend...","Repêché par le monte-charge.","Le trou a gagné, pas papy.","Demain on réessaie, Gino !"],
+    ["Die Physio wartet...","Mit dem Lastaufzug geborgen.","Das Loch gewann, Opa nicht.","Morgen nochmal, Gino!"],
+    ["A fisio te espera...","Içado pelo monta-cargas.","O buraco venceu, o vovô não.","Amanhã de novo, Gino!"]],
+  net:[["L'infermiera Pina non perdona.","Riportato alla tombola delle 15:00.","Stasera: purea e documentari.","Preso come una farfalla!"],
+    ["Nurse Pina shows no mercy.","Back to 3pm bingo.","Tonight: mush and documentaries.","Caught like a butterfly!"],
+    ["La enfermera Pina no perdona.","De vuelta al bingo de las 15:00.","Hoy: puré y documentales.","¡Atrapado como una mariposa!"],
+    ["L'infirmière Pina ne pardonne pas.","Retour au loto de 15h.","Ce soir : purée et documentaires.","Pris comme un papillon !"],
+    ["Schwester Pina kennt kein Erbarmen.","Zurück zum 15-Uhr-Bingo.","Heute: Brei und Dokus.","Wie ein Schmetterling gefangen!"],
+    ["A enfermeira Pina não perdoa.","De volta ao bingo das 15h.","Hoje: papa e documentários.","Pego como uma borboleta!"]],
+  cart:[["Travolto dal carrello dei medicinali!","Pillole ovunque, nonno a terra.","Quel carrello era proprio lì in mezzo..."],
+    ["Run over by the meds cart!","Pills everywhere, grandpa down.","That cart was right there..."],
+    ["¡Arrollado por el carrito de medicinas!","Pastillas por todas partes.","Ese carrito estaba justo ahí..."],
+    ["Renversé par le chariot à médicaments !","Pilules partout, papy à terre.","Ce chariot était en plein milieu..."],
+    ["Vom Medikamentenwagen überrollt!","Pillen überall, Opa am Boden.","Der Wagen stand genau da..."],
+    ["Atropelado pelo carrinho de remédios!","Pílulas por toda parte.","O carrinho estava bem ali..."]],
+  bird:[["Beccato in pieno dal piccione!","Maledetti piccioni del parco!","Frenato da una piuma in faccia."],
+    ["Pecked right by the pigeon!","Those darn park pigeons!","Stopped by a feather to the face."],
+    ["¡Picoteado por la paloma!","¡Malditas palomas del parque!","Frenado por una pluma en la cara."],
+    ["Piqué en plein par le pigeon !","Maudits pigeons du parc !","Stoppé par une plume au visage."],
+    ["Voll von der Taube gepickt!","Diese verdammten Parktauben!","Von einer Feder gestoppt."],
+    ["Bicado em cheio pelo pombo!","Malditos pombos do parque!","Parado por uma pena na cara."]],
+  proj:[["Colpito da una provetta!","Il Primario non perdona.","Rispedito in reparto."],
+    ["Hit by a test tube!","The Chief Doc shows no mercy.","Sent back to the ward."],
+    ["¡Golpeado por un tubo de ensayo!","El jefe no perdona.","De vuelta a la sala."],
+    ["Touché par une éprouvette !","Le chef ne pardonne pas.","Renvoyé en service."],
+    ["Von einem Reagenzglas getroffen!","Der Chefarzt kennt kein Erbarmen.","Zurück auf die Station."],
+    ["Atingido por um tubo de ensaio!","O chefe não perdoa.","De volta à enfermaria."]],
+};
+const NAMES={
+  CHIARA:["FAIR","CLARA","CLAIRE","HELL","CLARA"], OLIVASTRA:["OLIVE","OLIVA","OLIVÂTRE","OLIV","OLIVA"], AMBRATA:["AMBER","ÁMBAR","AMBRÉE","BERNSTEIN","ÂMBAR"], SCURA:["DARK","OSCURA","FONCÉE","DUNKEL","ESCURA"], ZOMBIE:["ZOMBIE","ZOMBI","ZOMBIE","ZOMBIE","ZUMBI"], ORCO:["ORC","ORCO","ORQUE","ORK","ORC"], HULK:["HULK","HULK","HULK","HULK","HULK"], GOLEM:["GOLEM","GÓLEM","GOLEM","GOLEM","GOLEM"],
+  BIANCHI:["WHITE","BLANCO","BLANCS","WEISS","BRANCO"], GRIGI:["GREY","GRIS","GRIS","GRAU","CINZA"], CASTANI:["BROWN","CASTAÑO","CHÂTAIN","BRAUN","CASTANHO"], BIONDI:["BLOND","RUBIO","BLOND","BLOND","LOIRO"], ROSSI:["RED","PELIRROJO","ROUX","ROT","RUIVO"], "BLU PUNK":["PUNK BLUE","AZUL PUNK","BLEU PUNK","PUNK-BLAU","AZUL PUNK"], ALIENO:["ALIEN","ALIEN","ALIEN","ALIEN","ALIEN"], "VIOLA MAGO":["WIZARD PURPLE","MORADO MAGO","VIOLET MAGE","ZAUBER-LILA","ROXO MAGO"], "ARGENTO ELFO":["ELF SILVER","PLATA ELFO","ARGENT ELFE","ELFEN-SILBER","PRATA ELFO"],
+  CLASSICI:["CLASSIC","CLÁSICO","CLASSIQUE","KLASSISCH","CLÁSSICO"], PELATO:["BALD","CALVO","CHAUVE","GLATZE","CARECA"], DOC:["DOC","DOC","DOC","DOC","DOC"], CRESTA:["MOHAWK","CRESTA","CRÊTE","IROKESE","CRISTA"], CODINO:["PONYTAIL","COLETA","QUEUE","ZOPF","RABO"], MAGO:["WIZARD","MAGO","MAGE","ZAUBERER","MAGO"], ELFO:["ELF","ELFO","ELFE","ELF","ELFO"],
+  CELESTE:["SKY BLUE","CELESTE","CIEL","HIMMELBLAU","CELESTE"], ROSSO:["RED","ROJO","ROUGE","ROT","VERMELHO"], VERDE:["GREEN","VERDE","VERT","GRÜN","VERDE"], GIALLO:["YELLOW","AMARILLO","JAUNE","GELB","AMARELO"], VIOLA:["PURPLE","MORADO","VIOLET","LILA","ROXO"], EVASO:["CONVICT","FUGADO","ÉVADÉ","HÄFTLING","FUGITIVO"], HOBBIT:["HOBBIT","HOBBIT","HOBBIT","HOBBIT","HOBBIT"], "SAIO JEDI":["JEDI ROBE","TÚNICA JEDI","ROBE JEDI","JEDI-ROBE","TÚNICA JEDI"], "GRIGIO MAGO":["GREY WIZARD","MAGO GRIS","MAGE GRIS","GRAUER MAGIER","MAGO CINZA"], "MANTELLO EROE":["HERO CAPE","CAPA HÉROE","CAPE HÉROS","HELDEN-UMHANG","CAPA HERÓI"], "BIANCO MAGO":["WHITE WIZARD","MAGO BLANCO","MAGE BLANC","WEISSER MAGIER","MAGO BRANCO"],
+  "A RIGHE":["STRIPES","RAYAS","RAYURES","STREIFEN","LISTRAS"], "TINTA UNITA":["SOLID","LISO","UNI","EINFARBIG","LISO"], "A POIS":["POLKA DOTS","LUNARES","À POIS","PUNKTE","BOLINHAS"], STELLE:["STARS","ESTRELLAS","ÉTOILES","STERNE","ESTRELAS"],
+  LEGNO:["WOOD","MADERA","BOIS","HOLZ","MADEIRA"], NERO:["BLACK","NEGRO","NOIR","SCHWARZ","PRETO"], ARGENTO:["SILVER","PLATA","ARGENT","SILBER","PRATA"], ORO:["GOLD","ORO","OR","GOLD","OURO"],
+  BASTONE:["STICK","PALO","BÂTON","STOCK","PAU"], ELEGANTE:["ELEGANT","ELEGANTE","ÉLÉGANTE","ELEGANT","ELEGANTE"], OMBRELLO:["UMBRELLA","PARAGUAS","PARAPLUIE","SCHIRM","GUARDA-CHUVA"], "MAZZA GOLF":["GOLF CLUB","PALO GOLF","CLUB GOLF","GOLFSCHLÄGER","TACO GOLF"], "SPADA LASER":["LIGHTSABER","SABLE LÁSER","SABRE LASER","LICHTSCHWERT","SABRE LASER"], "BASTONE MAGO":["WIZARD STAFF","BÁCULO MAGO","BÂTON MAGE","ZAUBERSTAB","CAJADO MAGO"], BACCHETTA:["WAND","VARITA","BAGUETTE","STAB","VARINHA"], MARTELLO:["HAMMER","MARTILLO","MARTEAU","HAMMER","MARTELO"], TRIDENTE:["TRIDENT","TRIDENTE","TRIDENT","DREIZACK","TRIDENTE"],
+  GIARDINO:["GARDEN","JARDÍN","JARDIN","GARTEN","JARDIM"], PAESE:["TOWN","PUEBLO","VILLAGE","DORF","VILA"], PARCO:["PARK","PARQUE","PARC","PARK","PARQUE"], SPIAGGIA:["BEACH","PLAYA","PLAGE","STRAND","PRAIA"], AUTUNNO:["AUTUMN","OTOÑO","AUTOMNE","HERBST","OUTONO"], NOTTE:["NIGHT","NOCHE","NUIT","NACHT","NOITE"], NEVE:["SNOW","NIEVE","NEIGE","SCHNEE","NEVE"],
+};
+function TR(k){ const a=STR[k]; if(!a)return k; return a[li]||a[0]; }
+function nm(s){ if(li===0)return s; const a=NAMES[s]; return a?a[li-1]:s; }
+/* ============================================================
    NONNO RUN — Fuga dal Ricovero
    Endless runner: il nonno Gino scappa dalla casa di riposo.
    ↑ / tap        = salta i fossi
@@ -199,8 +378,9 @@ const TRAPS=[
 const SETTINGS_ROWS=[{k:'music',lab:'MUSICA'},{k:'sfx',lab:'EFFETTI SONORI'},{k:'vibe',lab:'VIBRAZIONE'}];
 function settingsRowAt(xy){
   if(!xy)return -1;
-  for(let i=0;i<3;i++){ const y=82+i*26; if(xy.y>=y-13&&xy.y<=y+11)return i; }
-  if(xy.y>=149&&xy.y<=171)return 3; // azzera progressi
+  for(let i=0;i<3;i++){ const y=64+i*24; if(xy.y>=y-12&&xy.y<=y+10)return i; }
+  if(xy.y>=126&&xy.y<=150)return 4; // lingua
+  if(xy.y>=158&&xy.y<=182)return 3; // azzera progressi
   return -1;
 }
 function doReset(){
@@ -208,7 +388,7 @@ function doReset(){
   hi=0; coins=0; games=0; totM=0; topRuns=[];
   upg={inv:0,turbo:0,mag:0,fly:0,shield:0,candy:0,start:0,revive:0,pet:0};
   eggsBought=new Set(); sel=CATS.map(()=>0); catSel=0; applyCustom();
-  setMsg='PROGRESSI AZZERATI'; setMsgT=tt+2.2;
+  setMsg=TR('reset_done'); setMsgT=tt+2.2;
 }
 const STATS_BTN ={x:VW-66,y:6,w:60,h:22};
 const RESUME_BTN={x:VW/2-74,y:112,w:148,h:28};
@@ -235,11 +415,11 @@ function toMenu(){ LS.setItem('nonnoRunCoins',coins); LS.setItem('nonnoRunCandyT
 function retry(){ reset(); st='play'; }
 function shareScore(){
   const m=Math.floor(dist/30), s=Math.floor(score);
-  const text='Sono scappato dalla casa di riposo per '+m+' m ('+s+' punti) in Nonno Run! 🏃';
+  const text=TR('share_text').replace('{m}',m).replace('{s}',s);
   const url='https://sp0pex.github.io/nonno-run/';
   if(navigator.share){ navigator.share({title:'Nonno Run',text:text,url:url}).catch(()=>{}); }
-  else if(navigator.clipboard){ navigator.clipboard.writeText(text+' '+url).then(()=>{shareMsg='COPIATO NEGLI APPUNTI!';shareMsgT=tt+1.8;}).catch(()=>{}); }
-  else { shareMsg='CONDIVISIONE NON DISPONIBILE'; shareMsgT=tt+1.8; }
+  else if(navigator.clipboard){ navigator.clipboard.writeText(text+' '+url).then(()=>{shareMsg=TR('copied');shareMsgT=tt+1.8;}).catch(()=>{}); }
+  else { shareMsg=TR('share_unavail'); shareMsgT=tt+1.8; }
 }
 function doJump(){
   if(st!=='play')return;
@@ -276,9 +456,10 @@ function act(a,xy){
         if(k==='music'){ set.music?(ac(),musicStart()):musicStop(); }
         if(k==='vibe'&&set.vibe)vib(20);
         tone(set[k]?660:330,set[k]?880:220,0.08,'square',0.08);
+      } else if(i===4){ cycleLang(xy.x<352?-1:1); resetConfirm=0; tone(520,700,0.07,'square',0.08);
       } else if(i===3){
         if(resetConfirm>0){ doReset(); resetConfirm=0; }
-        else { resetConfirm=1; setMsg='SICURO? TOCCA ANCORA'; setMsgT=tt+2.5; tone(440,300,0.1,'square',0.1); }
+        else { resetConfirm=1; setMsg=TR('reset_sure'); setMsgT=tt+2.5; tone(440,300,0.1,'square',0.1); }
       } else resetConfirm=0;
     }
     return;
@@ -438,15 +619,6 @@ function overPit(){
     if(e.type==='pit' && PX>e.x+8 && PX<e.x+e.w-8) return e;
   return null;
 }
-const PIT_MSG=['La fisioterapia ti aspetta...','Ti ripescano col montacarichi.',
-  'Il fosso ha vinto, il nonno no.','Domani si riprova, Gino!'];
-const NET_MSG=['L\'infermiera Pina non perdona.','Riportato alla tombola delle 15:00.',
-  'Stasera: purea e documentari.','Preso come una farfalla!'];
-const CART_MSG=['Travolto dal carrello dei medicinali!','Pillole ovunque, nonno a terra.',
-  'Quel carrello era proprio lì in mezzo...'];
-const BIRD_MSG=['Beccato in pieno dal piccione!','Maledetti piccioni del parco!',
-  'Frenato da una piuma in faccia.'];
-const PROJ_MSG=['Colpito da una provetta!','Il Primario non perdona.','Rispedito in reparto.'];
 function startFall(pit){
   if(revivesLeft>0){ doRevive(); return; }
   st='dying'; deathKind='pit'; deathT=0;
@@ -471,11 +643,11 @@ function gameOver(){
     const prev=hi;
     hi=s; newHi=true; LS.setItem('nonnoRunHi',hi); SFX.record();
     const nuove=[];
-    for(const c of CATS)for(const o of c.list){ const r=c.req(o); if(r>prev&&r<=hi)nuove.push(c.name(o)); }
+    for(const c of CATS)for(const o of c.list){ const r=c.req(o); if(r>prev&&r<=hi)nuove.push(nm(c.name(o))); }
     if(nuove.length)newSkinMsg=nuove.slice(0,4).join(' + ');
   }
-  const m={pit:PIT_MSG,net:NET_MSG,cart:CART_MSG,bird:BIRD_MSG,proj:PROJ_MSG}[deathKind]||PIT_MSG;
-  deathMsg=m[Math.random()*m.length|0];
+  const grp=MSGS[deathKind]||MSGS.pit, arr=grp[li]||grp[0];
+  deathMsg=arr[Math.random()*arr.length|0];
   // statistiche
   LS.setItem('nonnoRunCoins',coins);
   LS.setItem('nonnoRunCandyTot',totCandy);
@@ -709,13 +881,13 @@ const CANECOLS=[
 const CANETYPES=[{n:'BASTONE'},{n:'ELEGANTE'},{n:'OMBRELLO'},{n:'MAZZA GOLF',egg:1500},{n:'SPADA LASER',egg:5000},
   {n:'BASTONE MAGO',egg:6000},{n:'BACCHETTA',egg:4000},{n:'MARTELLO',egg:7000},{n:'TRIDENTE',egg:8500}];
 const CATS=[
-  {lab:'PELLE',        list:SKINTONES,  name:o=>o.n,    req:o=>o.egg||0},
-  {lab:'CAPELLI',      list:HAIRCOLS,   name:o=>o.n,    req:o=>o.egg||0},
-  {lab:'ACCONCIATURA', list:HAIRSTYLES, name:o=>o.n,    req:o=>o.egg||0},
-  {lab:'PIGIAMA',      list:SKINS,      name:o=>o.nome, req:o=>o.req||0},
-  {lab:'FANTASIA',     list:PJPATTERNS, name:o=>o.n,    req:o=>o.egg||0},
-  {lab:'BASTONE',      list:CANECOLS,   name:o=>o.n,    req:o=>o.egg||0},
-  {lab:'TIPO BASTONE', list:CANETYPES,  name:o=>o.n,    req:o=>o.egg||0},
+  {key:'cat_skin',     list:SKINTONES,  name:o=>o.n,    req:o=>o.egg||0},
+  {key:'cat_hair',     list:HAIRCOLS,   name:o=>o.n,    req:o=>o.egg||0},
+  {key:'cat_style',    list:HAIRSTYLES, name:o=>o.n,    req:o=>o.egg||0},
+  {key:'cat_pajama',   list:SKINS,      name:o=>o.nome, req:o=>o.req||0},
+  {key:'cat_pattern',  list:PJPATTERNS, name:o=>o.n,    req:o=>o.egg||0},
+  {key:'cat_cane',     list:CANECOLS,   name:o=>o.n,    req:o=>o.egg||0},
+  {key:'cat_canetype', list:CANETYPES,  name:o=>o.n,    req:o=>o.egg||0},
 ];
 const CC={skin:'#eec39a',skin2:'#d9a066',hair:'#f2f2f2',hairStyle:0,
           pj:'#9cc3ea',pjd:'#6f9cc7',pjPat:0,cane:'#a06b3a',caneType:0};
@@ -746,32 +918,33 @@ applyCustom();
 
 /* ---------------- negozio / abilità ---------------- */
 const UPGRADES=[
-  {key:'inv',   lab:'INVINCIBILITA +2s',  max:3, cost:l=>20+l*15},
-  {key:'turbo', lab:'TURBO +2s',          max:3, cost:l=>20+l*15},
-  {key:'mag',   lab:'MAGNETE +raggio',    max:3, cost:l=>15+l*10},
-  {key:'fly',   lab:'RAZZO +1.5s',        max:3, cost:l=>25+l*15},
-  {key:'shield',lab:'DENTIERA +1 carica', max:2, cost:l=>30+l*20},
-  {key:'candy', lab:'CARAMELLE +valore',  max:3, cost:l=>20+l*15},
-  {key:'start', lab:'PARTI CON SCUDO',    max:1, cost:l=>60},
-  {key:'revive',lab:'SECONDA CHANCE +1',  max:2, cost:l=>50+l*45},
-  {key:'pet',   lab:'PET: CANE raccogli-caramelle', max:1, cost:l=>90},
+  {key:'inv',   tk:'u_inv',    max:3, cost:l=>20+l*15},
+  {key:'turbo', tk:'u_turbo',  max:3, cost:l=>20+l*15},
+  {key:'mag',   tk:'u_mag',    max:3, cost:l=>15+l*10},
+  {key:'fly',   tk:'u_fly',    max:3, cost:l=>25+l*15},
+  {key:'shield',tk:'u_shield', max:2, cost:l=>30+l*20},
+  {key:'candy', tk:'u_candy',  max:3, cost:l=>20+l*15},
+  {key:'start', tk:'u_start',  max:1, cost:l=>60},
+  {key:'revive',tk:'u_revive', max:2, cost:l=>50+l*45},
+  {key:'pet',   tk:'u_pet',    max:1, cost:l=>90},
 ];
 const EGGS=[];
-CATS.forEach((c,ci)=>c.list.forEach((o,i)=>{ const r=c.req(o); if(r>0)EGGS.push({ci,i,lab:c.lab+': '+c.name(o),cost:Math.max(10,Math.round(r/100))}); }));
+CATS.forEach((c,ci)=>c.list.forEach((o,i)=>{ const r=c.req(o); if(r>0)EGGS.push({ci,i,cost:Math.max(10,Math.round(r/100))}); }));
+function eggLabel(e){ return TR(CATS[e.ci].key)+': '+nm(CATS[e.ci].name(CATS[e.ci].list[e.i])); }
 function eggOwned(e){ return eggsBought.has(e.ci+':'+e.i) || hi>=CATS[e.ci].req(CATS[e.ci].list[e.i]); }
 function saveShop(){ LS.setItem('nonnoRunCoins',coins); LS.setItem('nonnoRunUpg',JSON.stringify(upg)); LS.setItem('nonnoRunEggs',JSON.stringify([...eggsBought])); }
 function buyUpgrade(i){
   const u=UPGRADES[i], lv=upg[u.key]||0;
-  if(lv>=u.max){ shopMsg='GIA AL MASSIMO'; shopMsgT=tt+1.4; return; }
+  if(lv>=u.max){ shopMsg=TR('msg_max'); shopMsgT=tt+1.4; return; }
   const cost=u.cost(lv);
-  if(coins<cost){ shopMsg='GETTONI INSUFFICIENTI'; shopMsgT=tt+1.4; tone(200,140,0.12,'square',0.10); return; }
-  coins-=cost; upg[u.key]=lv+1; saveShop(); SFX.power(); shopMsg='POTENZIATO!'; shopMsgT=tt+1.2;
+  if(coins<cost){ shopMsg=TR('msg_nocoins'); shopMsgT=tt+1.4; tone(200,140,0.12,'square',0.10); return; }
+  coins-=cost; upg[u.key]=lv+1; saveShop(); SFX.power(); shopMsg=TR('msg_upgraded'); shopMsgT=tt+1.2;
 }
 function buyEgg(i){
   const e=EGGS[i];
-  if(eggOwned(e)){ shopMsg='GIA SBLOCCATO'; shopMsgT=tt+1.4; return; }
-  if(coins<e.cost){ shopMsg='GETTONI INSUFFICIENTI'; shopMsgT=tt+1.4; tone(200,140,0.12,'square',0.10); return; }
-  coins-=e.cost; eggsBought.add(e.ci+':'+e.i); saveShop(); applyCustom(); SFX.power(); shopMsg='SBLOCCATO!'; shopMsgT=tt+1.2;
+  if(eggOwned(e)){ shopMsg=TR('msg_owned'); shopMsgT=tt+1.4; return; }
+  if(coins<e.cost){ shopMsg=TR('msg_nocoins'); shopMsgT=tt+1.4; tone(200,140,0.12,'square',0.10); return; }
+  coins-=e.cost; eggsBought.add(e.ci+':'+e.i); saveShop(); applyCustom(); SFX.power(); shopMsg=TR('msg_unlocked'); shopMsgT=tt+1.2;
 }
 
 /* ---------------- missioni & obiettivi ---------------- */
@@ -786,27 +959,27 @@ function newMission(){
   else { tgt=600+rnd(8)*300; r=Math.round(tgt/30); }
   return {t,tgt,p:0,r};
 }
-function misText(m){ return {dist:'Corri '+m.tgt+'m in una corsa', candy:'Raccogli '+m.tgt+' caramelle',
-  dodge:'Schiva '+m.tgt+' trappole in una corsa', power:'Usa '+m.tgt+' power-up', score:'Fai '+m.tgt+' punti in una corsa'}[m.t]; }
+function misText(m){ return TR('m_'+m.t).replace('{n}',m.tgt); }
 if(!Array.isArray(missions)||missions.length<3) missions=[newMission(),newMission(),newMission()];
 function saveMissions(){ LS.setItem('nonnoRunMis',JSON.stringify(missions)); }
 function checkMissions(){
   let ch=false;
   for(let i=0;i<missions.length;i++){ const m=missions[i];
-    if(m.p>=m.tgt){ coins+=m.r; misMsg='MISSIONE FATTA +'+m.r; misMsgT=tt+2.2; SFX.power(); missions[i]=newMission(); ch=true; } }
+    if(m.p>=m.tgt){ coins+=m.r; misMsg=TR('mission_done')+' +'+m.r; misMsgT=tt+2.2; SFX.power(); missions[i]=newMission(); ch=true; } }
   if(ch){ saveMissions(); LS.setItem('nonnoRunCoins',coins); }
 }
 const ACHS=[
-  {id:'d500', txt:'500 m totali',        tgt:500,  get:()=>totM,     r:25},
-  {id:'d5000',txt:'5000 m totali',       tgt:5000, get:()=>totM,     r:120},
-  {id:'c200', txt:'200 caramelle totali',tgt:200,  get:()=>totCandy, r:60},
-  {id:'g25',  txt:'25 partite giocate',  tgt:25,   get:()=>games,    r:50},
-  {id:'s2000',txt:'record 2000 punti',   tgt:2000, get:()=>hi,       r:60},
-  {id:'s6000',txt:'record 6000 punti',   tgt:6000, get:()=>hi,       r:180},
+  {id:'d500', tk:'ach_dist',  tgt:500,  get:()=>totM,     r:25},
+  {id:'d5000',tk:'ach_dist',  tgt:5000, get:()=>totM,     r:120},
+  {id:'c200', tk:'ach_candy', tgt:200,  get:()=>totCandy, r:60},
+  {id:'g25',  tk:'ach_games', tgt:25,   get:()=>games,    r:50},
+  {id:'s2000',tk:'ach_record',tgt:2000, get:()=>hi,       r:60},
+  {id:'s6000',tk:'ach_record',tgt:6000, get:()=>hi,       r:180},
 ];
+function achText(a){ return TR(a.tk).replace('{n}',a.tgt); }
 function checkAch(){
   let ch=false;
-  for(const a of ACHS){ if(!achDone.has(a.id) && a.get()>=a.tgt){ achDone.add(a.id); coins+=a.r; misMsg='OBIETTIVO! +'+a.r; misMsgT=tt+2.2; SFX.record(); ch=true; } }
+  for(const a of ACHS){ if(!achDone.has(a.id) && a.get()>=a.tgt){ achDone.add(a.id); coins+=a.r; misMsg=TR('ach_toast')+' +'+a.r; misMsgT=tt+2.2; SFX.record(); ch=true; } }
   if(ch){ LS.setItem('nonnoRunAch',JSON.stringify([...achDone])); LS.setItem('nonnoRunCoins',coins); }
 }
 function doRevive(){
@@ -1264,14 +1437,14 @@ function txt(s,x,y,size,col,align,shadow){
 function drawHUD(){
   txt(String(Math.floor(score)),12,26,20,'#fff');
   txt(Math.floor(dist/30)+' m',12,42,10,'#ffe066');
-  if(mult>1) txt('COMBO x'+mult,12,58,12,'#ffd76e');
-  if(revivesLeft>0) txt('CHANCE x'+revivesLeft,VW-6,56,9,'#ff8ac4','right');
+  if(mult>1) txt(TR('combo')+' x'+mult,12,58,12,'#ffd76e');
+  if(revivesLeft>0) txt(TR('chance')+' x'+revivesLeft,VW-6,56,9,'#ff8ac4','right');
   // pulsante pausa
   const b=PAUSE_BTN;
   ctx.fillStyle='rgba(20,12,30,0.45)'; ctx.fillRect(b.x,b.y,b.w,b.h);
   ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=1; ctx.strokeRect(b.x+0.5,b.y+0.5,b.w-1,b.h-1);
   R(b.x+8,b.y+6,4,12,'#fff'); R(b.x+15,b.y+6,4,12,'#fff');
-  txt('RECORD '+hi,VW-6,b.y+b.h+12,9,'#ffd76e','right');
+  txt(TR('record')+' '+hi,VW-6,b.y+b.h+12,9,'#ffd76e','right');
   // barre power-up attivi
   const bars=[];
   if(inv>0)  bars.push(['pillB',inv/(10+upg.inv*2),'#4d84f7']);
@@ -1295,10 +1468,10 @@ function drawHUD(){
   }
   // toast missioni / seconda chance
   if(tt<misMsgT) txt(misMsg,VW/2,82,12,'#5fe07c','center');
-  if(tt<reviveT && Math.floor(tt*6)%2===0) txt('SECONDA CHANCE!',VW/2,120,20,'#ff8ac4','center');
+  if(tt<reviveT && Math.floor(tt*6)%2===0) txt(TR('second_chance'),VW/2,120,20,'#ff8ac4','center');
   // malus: comandi invertiti
   if(flip>0){
-    if(Math.floor(tt*6)%2===0) txt('COMANDI INVERTITI! ↑↓',VW/2,102,14,'#d36ad6','center');
+    if(Math.floor(tt*6)%2===0) txt(TR('inverted')+' ↑↓',VW/2,102,14,'#d36ad6','center');
     R(VW/2-30,108,Math.ceil(60*flip/6),4,'#a64bb0');
     ctx.strokeStyle='#d36ad6'; ctx.lineWidth=1; ctx.strokeRect(VW/2-30.5,107.5,61,5);
   }
@@ -1319,22 +1492,28 @@ function drawGearBtn(r){
 }
 function drawSettings(){
   ctx.fillStyle='rgba(20,12,30,0.90)'; ctx.fillRect(0,0,VW,VH);
-  txt('IMPOSTAZIONI',VW/2,32,18,'#ffe066','center');
+  txt(TR('settings'),VW/2,30,18,'#ffe066','center');
   for(let i=0;i<SETTINGS_ROWS.length;i++){
-    const y=82+i*26, on=!!set[SETTINGS_ROWS[i].k], tx=320, tw=64;
-    txt(SETTINGS_ROWS[i].lab,96,y,12,'#fff','left');
+    const y=64+i*24, k=SETTINGS_ROWS[i].k, on=!!set[k], tx=320, tw=64;
+    txt(TR(k),96,y,12,'#fff','left');
     ctx.fillStyle=on?'rgba(95,224,124,0.20)':'rgba(255,138,122,0.18)'; ctx.fillRect(tx,y-11,tw,16);
     ctx.strokeStyle=on?'#5fe07c':'#ff8a7a'; ctx.lineWidth=1; ctx.strokeRect(tx+0.5,y-10.5,tw-1,15);
     R(on?tx+tw-15:tx+3, y-9, 12,12, on?'#5fe07c':'#ff8a7a');
     txt(on?'ON':'OFF', on?tx+15:tx+tw-15, y, 9, '#fff','center');
   }
+  // lingua
+  const ly=138;
+  txt(TR('language'),96,ly,12,'#fff','left');
+  txt('◀',300,ly,12,'#ffe066','left');
+  txt(LANGNAME[lang],352,ly,11,'#9fd0ff','center');
+  txt('▶',404,ly,12,'#ffe066','right');
   // azzera progressi
-  ctx.fillStyle='rgba(255,80,80,0.14)'; ctx.fillRect(120,149,240,20);
-  ctx.strokeStyle='#ff6b5e'; ctx.lineWidth=1; ctx.strokeRect(120.5,149.5,239,19);
-  txt(resetConfirm>0?'SICURO? TOCCA ANCORA':'AZZERA PROGRESSI', VW/2,163,11,'#ff8a7a','center');
-  if(setMsg && tt<setMsgT) txt(setMsg,VW/2,190,11,'#5fe07c','center');
-  txt('Nonno Run  •  musica: Eddie Keller - Deadbeat',VW/2,212,8,'#9a93a8','center');
-  drawBtn(SET_DONE,'FATTO','#5fe07c');
+  ctx.fillStyle='rgba(255,80,80,0.14)'; ctx.fillRect(120,160,240,20);
+  ctx.strokeStyle='#ff6b5e'; ctx.lineWidth=1; ctx.strokeRect(120.5,160.5,239,19);
+  txt(resetConfirm>0?TR('reset_sure'):TR('reset'), VW/2,174,11,'#ff8a7a','center');
+  if(setMsg && tt<setMsgT) txt(setMsg,VW/2,198,11,'#5fe07c','center');
+  txt('Nonno Run  •  Eddie Keller - Deadbeat',VW/2,214,8,'#9a93a8','center');
+  drawBtn(SET_DONE,TR('done'),'#5fe07c');
 }
 function drawTrapIcon(type,ix,iy){
   if(type==='pit'){
@@ -1359,73 +1538,73 @@ function drawTrapIcon(type,ix,iy){
 }
 function drawMissions(){
   ctx.fillStyle='rgba(20,12,30,0.90)'; ctx.fillRect(0,0,VW,VH);
-  txt('MISSIONI & OBIETTIVI',VW/2,22,16,'#ffe066','center');
-  txt('GETTONI: '+coins,VW/2,37,10,'#ffd76e','center');
-  txt('MISSIONI  (a rotazione)',20,54,10,'#9fd0ff','left');
+  txt(TR('mis_title'),VW/2,22,16,'#ffe066','center');
+  txt(TR('coins')+': '+coins,VW/2,37,10,'#ffd76e','center');
+  txt(TR('mis_rotating'),20,54,10,'#9fd0ff','left');
   for(let i=0;i<missions.length;i++){ const m=missions[i], y=70+i*18;
     txt(misText(m),20,y,9,'#fff','left');
     txt(Math.min(m.p,m.tgt)+'/'+m.tgt+'  +'+m.r+'g',460,y,9, m.p>=m.tgt?'#5fe07c':'#ffd76e','right');
   }
-  txt('OBIETTIVI',20,128,10,'#9fd0ff','left');
+  txt(TR('goals'),20,128,10,'#9fd0ff','left');
   for(let i=0;i<ACHS.length;i++){ const a=ACHS[i], y=144+i*17, done=achDone.has(a.id);
-    txt(a.txt,20,y,9, done?'#777':'#fff','left');
-    txt(done?'FATTO':(Math.min(a.get(),a.tgt)+'/'+a.tgt+'  +'+a.r+'g'),460,y,9, done?'#5fe07c':'#ffd76e','right');
+    txt(achText(a),20,y,9, done?'#777':'#fff','left');
+    txt(done?TR('done'):(Math.min(a.get(),a.tgt)+'/'+a.tgt+'  +'+a.r+'g'),460,y,9, done?'#5fe07c':'#ffd76e','right');
   }
-  drawBtn(MIS_DONE,'FATTO','#5fe07c');
+  drawBtn(MIS_DONE,TR('done'),'#5fe07c');
 }
 function drawGuide(){
   ctx.fillStyle='rgba(20,12,30,0.92)'; ctx.fillRect(0,0,VW,VH);
-  txt('GUIDA',VW/2,24,17,'#ffe066','center');
+  txt(TR('guide'),VW/2,24,17,'#ffe066','center');
   // colonna POWER-UP
-  txt('POWER-UP',128,44,11,'#9fd0ff','center');
+  txt(TR('powerups'),128,44,11,'#9fd0ff','center');
   for(let i=0;i<GUIDE.length;i++){
     const g=GUIDE[i], y=60+i*22;
     if(g[0]==='candy')drawCandy({x:32,y:y,bob:0}); else drawPill({x:32,y:y,type:g[0],bob:0});
-    txt(g[1],52,y-2,10,'#fff','left');
-    txt(g[2],52,y+8,8,'#bdbdbd','left');
+    txt(TR('g_'+g[0]+'_n'),52,y-2,10,'#fff','left');
+    txt(TR('g_'+g[0]+'_d'),52,y+8,8,'#bdbdbd','left');
   }
   // colonna TRAPPOLE
-  txt('TRAPPOLE',358,44,11,'#ff8a7a','center');
+  txt(TR('traps'),358,44,11,'#ff8a7a','center');
   for(let i=0;i<TRAPS.length;i++){
-    const t=TRAPS[i], y=70+i*36;
+    const t=TRAPS[i], y=70+i*36, up=t[3]==='up';
     drawTrapIcon(t[0],272,y);
-    txt(t[1],294,y-2,10,'#fff','left');
-    txt((t[3]==='up'?'▲ ':'▼ ')+t[2],294,y+9,9, t[3]==='up'?'#ffe066':'#9fd0ff','left');
+    txt(TR('t_'+t[0]),294,y-2,10,'#fff','left');
+    txt((up?'▲ ':'▼ ')+TR(up?'jump_word':'slide_word'),294,y+9,9, up?'#ffe066':'#9fd0ff','left');
   }
-  drawBtn(GUIDE_DONE,'FATTO','#5fe07c');
+  drawBtn(GUIDE_DONE,TR('done'),'#5fe07c');
 }
 function drawStats(){
   ctx.fillStyle='rgba(20,12,30,0.80)'; ctx.fillRect(0,0,VW,VH);
-  txt('STATISTICHE',VW/2,40,24,'#ffe066','center');
-  txt('Partite giocate: '+games,VW/2,66,12,'#fff','center');
-  txt('Metri totali: '+totM+' m',VW/2,84,12,'#fff','center');
-  txt('— TOP 5 FUGHE —',VW/2,110,12,'#ffd76e','center');
-  if(topRuns.length===0) txt('nessuna fuga ancora...',VW/2,138,10,'#bbb','center');
+  txt(TR('stats'),VW/2,40,24,'#ffe066','center');
+  txt(TR('games_played')+' '+games,VW/2,66,12,'#fff','center');
+  txt(TR('total_m')+' '+totM+' m',VW/2,84,12,'#fff','center');
+  txt(TR('top5'),VW/2,110,12,'#ffd76e','center');
+  if(topRuns.length===0) txt(TR('no_runs'),VW/2,138,10,'#bbb','center');
   for(let i=0;i<topRuns.length;i++){
     const r=topRuns[i], y=130+i*18;
     txt((i+1)+'.',VW/2-116,y,12,'#ffe066','left');
-    txt(r.s+' pt',VW/2-92,y,12,'#fff','left');
+    txt(r.s+' '+TR('pts'),VW/2-92,y,12,'#fff','left');
     txt(r.m+' m',VW/2+44,y,12,'#9fd0ff','left');
   }
-  drawBtn(STATS_BACK,'INDIETRO','#ffd76e');
+  drawBtn(STATS_BACK,TR('back'),'#ffd76e');
 }
 function drawCustom(){
   ctx.fillStyle='rgba(20,12,30,0.86)'; ctx.fillRect(0,0,VW,VH);
-  txt('PERSONALIZZA',VW/2,24,18,'#ffe066','center');
+  txt(TR('customize'),VW/2,24,18,'#ffe066','center');
   // anteprima nonno a sinistra
   drawGrandpa(64,150,'run',tt*7);
-  txt('anteprima',64,168,8,'#bbb','center');
+  txt(TR('preview'),64,168,8,'#bbb','center');
   // righe categorie
   for(let i=0;i<CATS.length;i++){
     const c=CATS[i], y=90+i*19, opt=c.list[sel[i]], lock=!optUnlocked(i,sel[i]);
     if(i===catSel){ ctx.fillStyle='rgba(255,255,255,0.10)'; ctx.fillRect(126,y-13,344,18); }
     txt('◀',134,y,12,'#ffe066','left');
     txt('▶',462,y,12,'#ffe066','right');
-    txt(c.lab,150,y,8,'#b0b0b8','left');
-    const val=lock ? c.name(opt)+'  rec '+c.req(opt) : c.name(opt);
+    txt(TR(c.key),150,y,8,'#b0b0b8','left');
+    const val=lock ? nm(c.name(opt))+'  '+TR('rec_prefix')+' '+c.req(opt) : nm(c.name(opt));
     txt(val,322,y,11, lock?'#ff8a7a':'#fff','center');
   }
-  drawBtn(CUST_DONE,'FATTO','#5fe07c');
+  drawBtn(CUST_DONE,TR('done'),'#5fe07c');
 }
 function drawTab(r,label,active){
   ctx.fillStyle=active?'rgba(255,224,102,0.18)':'rgba(255,255,255,0.06)';
@@ -1436,10 +1615,10 @@ function drawTab(r,label,active){
 }
 function drawShop(){
   ctx.fillStyle='rgba(20,12,30,0.88)'; ctx.fillRect(0,0,VW,VH);
-  txt('NEGOZIO',VW/2,22,18,'#ffe066','center');
-  txt('GETTONI: '+coins,VW/2,38,11,'#ffd76e','center');
-  drawTab(SHOP_TAB1,'POTENZIAMENTI',shopTab===0);
-  drawTab(SHOP_TAB2,'EASTER EGG',shopTab===1);
+  txt(TR('shop'),VW/2,22,18,'#ffe066','center');
+  txt(TR('coins')+': '+coins,VW/2,38,11,'#ffd76e','center');
+  drawTab(SHOP_TAB1,TR('upgrades'),shopTab===0);
+  drawTab(SHOP_TAB2,TR('eggs'),shopTab===1);
   const list=shopTab===0?UPGRADES:EGGS;
   shopScroll=Math.max(0,Math.min(shopScroll, Math.max(0,list.length-SHOP_VIS)));
   for(let r=0;r<Math.min(SHOP_VIS,list.length);r++){
@@ -1447,34 +1626,34 @@ function drawShop(){
     if(i===shopSel){ ctx.fillStyle='rgba(255,255,255,0.09)'; ctx.fillRect(40,y-13,400,17); }
     if(shopTab===0){
       const u=list[i], lv=upg[u.key]||0, maxed=lv>=u.max, cost=u.cost(lv);
-      txt(u.lab,50,y,10,'#fff','left');
-      txt('Lv '+lv+'/'+u.max,300,y,9,'#9fd0ff','left');
-      txt(maxed?'MAX':(cost+'g'),432,y,10, maxed?'#5fe07c':(coins>=cost?'#ffd76e':'#ff8a7a'),'right');
+      txt(TR(u.tk),50,y,10,'#fff','left');
+      txt(TR('lv')+' '+lv+'/'+u.max,300,y,9,'#9fd0ff','left');
+      txt(maxed?TR('maxed'):(cost+'g'),432,y,10, maxed?'#5fe07c':(coins>=cost?'#ffd76e':'#ff8a7a'),'right');
     } else {
       const e=list[i], owned=eggOwned(e);
-      txt(e.lab,50,y,9,'#fff','left');
-      txt(owned?'OK':(e.cost+'g'),432,y,10, owned?'#5fe07c':(coins>=e.cost?'#ffd76e':'#ff8a7a'),'right');
+      txt(eggLabel(e),50,y,9,'#fff','left');
+      txt(owned?TR('owned'):(e.cost+'g'),432,y,10, owned?'#5fe07c':(coins>=e.cost?'#ffd76e':'#ff8a7a'),'right');
     }
   }
   if(shopScroll>0) txt('▲',458,74,11,'#ffe066','right');
   if(shopScroll+SHOP_VIS<list.length) txt('▼',458,224,11,'#ffe066','right');
   if(shopMsg && tt<shopMsgT) txt(shopMsg,VW/2,232,11,'#ffe066','center');
-  drawBtn(SHOP_DONE,'FATTO','#5fe07c');
+  drawBtn(SHOP_DONE,TR('done'),'#5fe07c');
 }
 function drawPaused(){
   ctx.fillStyle='rgba(20,12,30,0.62)'; ctx.fillRect(0,0,VW,VH);
-  txt('PAUSA',VW/2,80,28,'#ffe066','center');
-  drawBtn(RESUME_BTN,'RIPRENDI','#5fe07c');
-  drawBtn(PMENU_BTN,'MENU','#ffd76e');
-  drawBtn(PMUTE_BTN, audioMuted()?'AUDIO: OFF':'AUDIO: ON', audioMuted()?'#ff8a7a':'#5fe07c');
+  txt(TR('pause'),VW/2,80,28,'#ffe066','center');
+  drawBtn(RESUME_BTN,TR('resume'),'#5fe07c');
+  drawBtn(PMENU_BTN,TR('menu_btn'),'#ffd76e');
+  drawBtn(PMUTE_BTN, audioMuted()?TR('audio_off'):TR('audio_on'), audioMuted()?'#ff8a7a':'#5fe07c');
 }
 function drawMenu(){
   ctx.fillStyle='rgba(20,12,30,0.45)'; ctx.fillRect(0,0,VW,VH);
   txt('NONNO RUN',VW/2,62,34,'#ffe066','center');
-  txt('~ FUGA DAL RICOVERO ~',VW/2,82,12,'#fff','center');
-  drawBtn(CUSTOM_BTN,'PERSONALIZZA','#9fd0ff');
-  drawBtn(SHOP_BTN,'NEGOZIO','#ffd76e');
-  drawBtn(MIS_BTN,'MISSIONI','#5fe07c');
+  txt(TR('tagline'),VW/2,82,12,'#fff','center');
+  drawBtn(CUSTOM_BTN,TR('customize'),'#9fd0ff');
+  drawBtn(SHOP_BTN,TR('shop'),'#ffd76e');
+  drawBtn(MIS_BTN,TR('missions'),'#5fe07c');
   drawGrandpa(VW/2,152,'run',tt*9);
   // pannello istruzioni
   ctx.fillStyle='rgba(20,12,30,0.72)';
@@ -1483,19 +1662,19 @@ function drawMenu(){
   ctx.strokeRect(VW/2-150.5,162.5,301,68);
   ctx.font='bold 9px monospace'; ctx.textAlign='center';
   const rows=[
-    ['▲  TAP / SWIPE SU  —  salta il fosso','#fff'],
-    ['▼  SWIPE GIÙ  —  scivola sotto il retino','#fff'],
-    ['raccogli le PILLOLE per i poteri','#7da9ff'],
-    ['tocca  ?  in alto per la guida completa','#5fe07c'],
+    [TR('row_jump'),'#fff'],
+    [TR('row_slide'),'#fff'],
+    [TR('row_pills'),'#7da9ff'],
+    [TR('row_guide'),'#5fe07c'],
   ];
   rows.forEach((r,i)=>{
     ctx.fillStyle='rgba(20,12,30,0.8)'; ctx.fillText(r[0],VW/2+1,176+i*13+1);
     ctx.fillStyle=r[1]; ctx.fillText(r[0],VW/2,176+i*13);
   });
   if(Math.floor(tt*2)%2===0)
-    txt('— TOCCA PER SCAPPARE —',VW/2,248,13,'#ffe066','center');
-  txt((hi>0?'RECORD '+hi+'   ':'')+'GETTONI '+coins,VW/2,262,9,'#ffd76e','center');
-  if(isPortrait) txt('Ruota il telefono per giocare meglio',VW/2,16,9,'#fff','center');
+    txt(TR('tap_to_run'),VW/2,248,13,'#ffe066','center');
+  txt((hi>0?TR('record')+' '+hi+'   ':'')+TR('coins')+' '+coins,VW/2,262,9,'#ffd76e','center');
+  if(isPortrait) txt(TR('rotate'),VW/2,16,9,'#fff','center');
   // pulsanti impostazioni + guida + statistiche
   drawGearBtn(SET_BTN);
   ctx.fillStyle='rgba(20,12,30,0.45)'; ctx.fillRect(GUIDE_BTN.x,GUIDE_BTN.y,GUIDE_BTN.w,GUIDE_BTN.h);
@@ -1507,21 +1686,21 @@ function drawMenu(){
 }
 function drawDead(){
   ctx.fillStyle='rgba(20,12,30,0.62)'; ctx.fillRect(0,0,VW,VH);
-  txt({pit:'SEI CADUTO NEL FOSSO!',net:'CATTURATO COL RETINO!',cart:'SCONTRO COL CARRELLO!',bird:'BECCATO DAL PICCIONE!',proj:'COLPITO DAL PRIMARIO!'}[deathKind]||'CATTURATO!',
+  txt(TR('death_'+deathKind)!=='death_'+deathKind?TR('death_'+deathKind):TR('death_generic'),
       VW/2,86,18,'#ff6b5e','center');
   txt(deathMsg,VW/2,108,11,'#fff','center');
-  txt('PUNTI  '+Math.floor(score),VW/2,144,18,'#ffe066','center');
-  txt(Math.floor(dist/30)+' metri di libertà',VW/2,162,10,'#fff','center');
+  txt(TR('points')+'  '+Math.floor(score),VW/2,144,18,'#ffe066','center');
+  txt(TR('meters_freedom').replace('{n}',Math.floor(dist/30)),VW/2,162,10,'#fff','center');
   if(newHi){ if(Math.floor(tt*3)%2===0)
-    txt('★ NUOVO RECORD! ★',VW/2,186,14,'#3ecf5a','center'); }
-  else txt('RECORD  '+hi,VW/2,184,11,'#ffd76e','center');
+    txt(TR('new_record'),VW/2,186,14,'#3ecf5a','center'); }
+  else txt(TR('record')+'  '+hi,VW/2,184,11,'#ffd76e','center');
   if(newSkinMsg && Math.floor(tt*3)%2===1)
-    txt('PIGIAMA '+newSkinMsg+' SBLOCCATO!',VW/2,206,12,'#5fe07c','center');
+    txt(TR('pajama_unlocked').replace('{n}',newSkinMsg),VW/2,206,12,'#5fe07c','center');
   if(shareMsg && tt<shareMsgT) txt(shareMsg,VW/2,224,10,'#9fd0ff','center');
   if(deathT>0.55){
-    drawBtn(DEAD_RETRY,'RIPROVA','#5fe07c');
-    drawBtn(DEAD_SHARE,'CONDIVIDI','#9fd0ff');
-    drawBtn(DEAD_MENU,'MENU','#ffd76e');
+    drawBtn(DEAD_RETRY,TR('retry'),'#5fe07c');
+    drawBtn(DEAD_SHARE,TR('share'),'#9fd0ff');
+    drawBtn(DEAD_MENU,TR('menu_btn'),'#ffd76e');
   }
 }
 
@@ -1590,7 +1769,7 @@ function draw(){
   // annuncio scenario
   if(biomeFlash>0 && (st==='play'||st==='paused')){
     ctx.globalAlpha=Math.min(1,biomeFlash);
-    txt('SCENARIO: '+biomeName,VW/2,52,13,'#ffe066','center');
+    txt(TR('scenario')+' '+nm(biomeName),VW/2,52,13,'#ffe066','center');
     ctx.globalAlpha=1;
   }
 
