@@ -15,8 +15,13 @@
   html,body{margin:0;padding:0;height:100%;background:#1a1426;overflow:hidden;
     -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
   body{display:flex;align-items:center;justify-content:center;}
+  /* Dimensione gestita SOLO dalla CSS (unita viewport): scala a riempire lo
+     schermo mantenendo il rapporto 480:270, senza dipendere dal JavaScript.
+     Cosi non c'e' piu lo schermo nero al primo avvio. */
   canvas{image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;
-    box-shadow:0 0 60px rgba(0,0,0,.6);}
+    box-shadow:0 0 60px rgba(0,0,0,.6);
+    width:min(100vw, 177.78vh);
+    height:min(56.25vw, 100vh);}
 </style>
 </head>
 <body>
@@ -44,22 +49,17 @@ const VW=480, VH=270, GY=230, PX=110;
 const cv=document.getElementById('g'), ctx=cv.getContext('2d');
 ctx.imageSmoothingEnabled=false;
 
+// La dimensione del canvas la gestisce la CSS (vedi <style>). Qui aggiorniamo
+// solo l'orientamento per l'avviso "ruota il telefono".
 let isPortrait=false;
 function fit(){
-  const w=innerWidth||document.documentElement.clientWidth||0,
-        h=innerHeight||document.documentElement.clientHeight||0;
-  if(w<2||h<2) return;               // dimensioni non ancora pronte: riprovo dopo
-  const s=Math.min(w/VW, h/VH);
-  cv.style.width=(VW*s)+'px'; cv.style.height=(VH*s)+'px';
+  const w=innerWidth||document.documentElement.clientWidth||1,
+        h=innerHeight||document.documentElement.clientHeight||1;
   isPortrait = h>w;
 }
 addEventListener('resize',fit);
-addEventListener('orientationchange',()=>{ fit(); setTimeout(fit,150); setTimeout(fit,400); });
-addEventListener('load',()=>{ fit(); setTimeout(fit,150); });
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden)fit(); });
+addEventListener('orientationchange',fit);
 fit();
-// finché lo schermo non riporta dimensioni valide, riprovo (evita schermo nero al primo avvio)
-(function ensureFit(t){ fit(); if((parseFloat(cv.style.width)||0)<2 && t<40) setTimeout(()=>ensureFit(t+1),100); })(0);
 
 /* ---------------- audio ---------------- */
 let AC=null;
@@ -1626,18 +1626,10 @@ if(window.Capacitor){
   if(window.caches)
     caches.keys().then(ks=>ks.forEach(k=>caches.delete(k))).catch(()=>{});
 } else if('serviceWorker' in navigator && location.protocol!=='file:' && window.self===window.top){
-  addEventListener('load',()=>{
-    const hadController = !!navigator.serviceWorker.controller;
-    const reg=navigator.serviceWorker.register('sw.js');
-    reg.then(r=>{ if(r) setInterval(()=>r.update().catch(()=>{}), 60000); }).catch(()=>{});
-    let refreshing=false;
-    navigator.serviceWorker.addEventListener('controllerchange',()=>{
-      if(refreshing)return; refreshing=true;
-      // auto-aggiornamento: quando il nuovo service worker prende il controllo,
-      // ricarica una volta sola (solo se era un update, non al primo install)
-      if(hadController) location.reload();
-    });
-  });
+  // Registriamo il service worker per il gioco offline. NIENTE ricarica
+  // automatica: la pagina e' network-first, quindi ogni apertura prende gia'
+  // l'ultima versione quando sei online (nessun lampeggio/riavvio).
+  addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
 }
 </script>
 </body>
