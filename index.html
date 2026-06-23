@@ -1022,7 +1022,7 @@ function lerpHex(a,b,t){ if(t<=0)return a; if(t>=1)return b;
   return 'rgb('+Math.round(A[0]+(B[0]-A[0])*t)+','+Math.round(A[1]+(B[1]-A[1])*t)+','+Math.round(A[2]+(B[2]-A[2])*t)+')'; }
 function biomePal(d){
   const f=(d/30)/BIOME_M;
-  const i=Math.floor(f)%BIOMES.length, j=(i+1)%BIOMES.length;
+  const i=md(Math.floor(f),BIOMES.length), j=(i+1)%BIOMES.length;  // indice sempre valido
   let t=f-Math.floor(f);
   t = t<0.85?0:(t-0.85)/0.15;       // transizione solo nell'ultimo tratto
   const A=BIOMES[i],B=BIOMES[j],W={};
@@ -1122,7 +1122,7 @@ function drawWorld(d){
 const WEATHER_M=210; // metri per fase meteo
 function weatherInt(d){
   if(st==='play'||st==='dying'||st==='dead'||st==='paused') d+=weatherSeed; // fase casuale per la corsa
-  const f=(d/30)/WEATHER_M, i=Math.floor(f)%4, j=(i+1)%4;
+  const f=(d/30)/WEATHER_M, i=md(Math.floor(f),4), j=(i+1)%4;
   let t=f-Math.floor(f); t=t<0.85?0:(t-0.85)/0.15;
   const I=k=>((i===k?1:0)*(1-t)+(j===k?1:0)*t);
   return {sunset:I(1), rain:I(2), fog:I(3)}; // 0 = sereno
@@ -1608,10 +1608,11 @@ function draw(){
 
 let last=performance.now(), _lw=0, _lh=0;
 function frame(now){
-  // rete di sicurezza: se lo schermo cambia/diventa valido, ridimensiona il canvas
   if(innerWidth!==_lw || innerHeight!==_lh){ _lw=innerWidth; _lh=innerHeight; fit(); }
-  const dt=Math.min(0.033,(now-last)/1000); last=now;
-  update(dt); draw();
+  // dt sempre >=0: un primo frame con dt negativo mandava in errore il disegno
+  const dt=Math.max(0, Math.min(0.033,(now-last)/1000)); last=now;
+  // rete di sicurezza: un errore in un frame NON deve fermare il loop (= schermo nero)
+  try{ update(dt); draw(); }catch(e){}
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
